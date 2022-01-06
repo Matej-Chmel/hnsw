@@ -32,3 +32,5 @@ constexpr int EXPLORE_COUNT_TRESHOLD = 10;
 constexpr float VECTOR_FRAGMENT1 = 0.1;
 constexpr float VECTOR_FRAGMENT2 = 0.15;
 #endif
+
+#define STORE_NODE_ORDER

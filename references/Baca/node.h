@@ -92,6 +92,9 @@ public:
 		#ifdef COUNT_INWARD_DEGREE
 		, inward_count(0)
 		#endif
+		#ifdef STORE_NODE_ORDER
+		, order(0)
+		#endif
 		//        , explored_count(0)
 	{
 		neighbors.reserve(neighbor_size);
