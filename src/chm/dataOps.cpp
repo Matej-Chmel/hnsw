@@ -3,7 +3,6 @@
 #include <random>
 #include "AppError.hpp"
 #include "dataOps.hpp"
-#include "literals.hpp"
 
 namespace chm {
 	void throwMissingComponents(size_t actualLen, size_t expectedLen) {
@@ -18,10 +17,10 @@ namespace chm {
 		throw AppError("File "_f << p << " has unsupported extension.");
 	}
 
-	ElementGenerator::ElementGenerator(size_t count, size_t dim, float min, float max, unsigned int seed)
-		: count(count), dim(dim), min(min), max(max), seed(seed) { }
+	ElementGen::ElementGen(size_t count, size_t dim, float min, float max, unsigned int seed)
+		: count(count), dim(dim), min(min), max(max), seed(seed) {}
 
-	FloatVecPtr ElementGenerator::generate() {
+	FloatVecPtr ElementGen::generate() const {
 		std::default_random_engine gen(this->seed);
 		std::uniform_real_distribution<float> dist(this->min, this->max);
 		auto res = std::make_shared<FloatVec>();
@@ -37,24 +36,25 @@ namespace chm {
 
 	void ensureDir(const fs::path& p) {
 		if(!fs::exists(p))
-			fs::create_directory(p);
+			fs::create_directories(p);
 	}
 
 	FloatVecPtr read(const fs::path& p, size_t count, size_t dim) {
 		auto ext = p.extension().string();
 
-		if (!fs::exists(p))
+		if(!fs::exists(p))
 			throw AppError("File "_f << p << " doesn't exist.");
 
 		std::ifstream s(p, std::ios::binary);
 
-		if (!s.is_open())
+		if(!s.is_open())
 			throwNotOpened(p);
 
-		if (ext == ".bin")
+		if(ext == ".bin")
 			return readBin(s, count, dim);
 		else
 			throwUnsupportedExtension(p);
+		return nullptr;
 	}
 
 	FloatVecPtr readBin(std::istream& s, size_t count, size_t dim) {
@@ -65,9 +65,9 @@ namespace chm {
 		auto actualLen = fileSize / sizeof(float);
 		auto expectedLen = count * dim;
 
-		if (fileSize % sizeof(float))
+		if(fileSize % sizeof(float))
 			throw AppError("Not all components in file are floats.");
-		if (actualLen < expectedLen)
+		if(actualLen < expectedLen)
 			throwMissingComponents(actualLen, expectedLen);
 
 		auto coords = std::make_shared<FloatVec>();
@@ -86,10 +86,10 @@ namespace chm {
 		auto ext = p.extension().string();
 		std::ofstream s(p, std::ios::binary);
 
-		if (!s.is_open())
+		if(!s.is_open())
 			throwNotOpened(p);
 
-		if (ext == ".bin")
+		if(ext == ".bin")
 			writeBin(coords, s, count, dim);
 		else
 			throwUnsupportedExtension(p);
@@ -98,46 +98,48 @@ namespace chm {
 	void writeBin(const FloatVecPtr& coords, std::ostream& s, size_t count, size_t dim) {
 		auto expectedLen = count * dim;
 
-		if (coords->size() < expectedLen)
+		if(coords->size() < expectedLen)
 			throwMissingComponents(coords->size(), expectedLen);
 
 		s.write(reinterpret_cast<std::ostream::char_type*>(coords->data()), expectedLen * sizeof(float));
 	}
 
-	void writeConnections(const IdxVec3DPtr& conn, std::ostream& o) {
+	void writeConnections(const IdxVec3DPtr& conn, std::ostream& stream) {
 		const auto& l = *conn;
 		const auto nodeCount = l.size();
 		const auto nodeLastIdx = nodeCount - 1;
 
 		for(size_t nodeIdx = 0; nodeIdx < nodeCount; nodeIdx++) {
-			o << "Node " << nodeIdx << '\n';
+			stream << "Node " << nodeIdx << '\n';
 
 			const auto& nodeLayers = l[nodeIdx];
 			const auto nodeLayersLen = nodeLayers.size();
 
 			for(size_t layerIdx = nodeLayersLen - 1;; layerIdx--) {
-				o << "Layer " << layerIdx << ": ";
+				stream << "Layer " << layerIdx << ": ";
 
 				const auto& layer = nodeLayers[layerIdx];
 
 				if(layer.empty()) {
-					o << "EMPTY\n";
-					continue;
+					stream << "EMPTY\n";
+				} else {
+					const auto layerLen = layer.size();
+					const auto lastIdx = layerLen - 1;
+
+					stream << "[length " << layerLen << "] ";
+
+					for(size_t i = 0; i < lastIdx; i++)
+						stream << layer[i] << ' ';
+
+					stream << layer[lastIdx] << '\n';
 				}
-
-				const auto lastIdx = layer.size() - 1;
-
-				for(size_t i = 0; i < lastIdx; i++)
-					o << layer[i] << ' ';
-
-				o << layer[lastIdx] << '\n';
 
 				if(layerIdx == 0)
 					break;
 			}
 
 			if(nodeIdx != nodeLastIdx)
-				o << '\n';
+				stream << '\n';
 		}
 	}
 }

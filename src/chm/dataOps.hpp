@@ -17,16 +17,18 @@ namespace chm {
 	typedef std::shared_ptr<IdxVec> IdxVecPtr;
 	typedef std::shared_ptr<IdxVec3D> IdxVec3DPtr;
 
-	struct ElementGenerator {
+	struct ElementGen {
 		size_t count;
 		size_t dim;
 		float min;
 		float max;
 		unsigned int seed;
 
-		ElementGenerator(size_t count, size_t dim, float min, float max, unsigned int seed);
-		FloatVecPtr generate();
+		ElementGen(size_t count, size_t dim, float min, float max, unsigned int seed);
+		FloatVecPtr generate() const;
 	};
+
+	typedef std::shared_ptr<ElementGen> ElementGenPtr;
 
 	void ensureDir(const fs::path& p);
 	FloatVecPtr read(const fs::path& p, size_t count, size_t dim);
@@ -34,5 +36,5 @@ namespace chm {
 	void sortConnections(IdxVec3DPtr& conn);
 	void write(const FloatVecPtr& coords, const fs::path& p, size_t count, size_t dim);
 	void writeBin(const FloatVecPtr& coords, std::ostream& s, size_t count, size_t dim);
-	void writeConnections(const IdxVec3DPtr& conn, std::ostream& o);
+	void writeConnections(const IdxVec3DPtr& conn, std::ostream& stream);
 }

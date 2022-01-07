@@ -1,31 +1,41 @@
 #pragma once
 #include <Baca/hnsw.h>
 #include <hnswlib/hnswalg.h>
-#include "KNNAlgorithm.hpp"
+#include "KNNAlgo.hpp"
 
 namespace chm {
-	class hnswlibWrapper : public HNSWAlgorithm {
-		hnswlib::HierarchicalNSW<float>* hnsw;
-		hnswlib::L2Space* space;
+	class BacaWrapper : public HNSWAlgo {
+		size_t ef;
+		HNSW* hnsw;
+
+	protected:
+		void init() override;
+		void insert(float* data, size_t) override;
 
 	public:
-		~hnswlibWrapper();
-		void build(const FloatVecPtr& coords) override;
+		static const std::string NAME;
+
+		~BacaWrapper();
+		BacaWrapper(const HNSWConfigPtr& cfg);
 		IdxVec3DPtr getConnections() const override;
-		hnswlibWrapper(const HNSWConfigPtr& cfg);
 		KNNResultPtr search(const FloatVecPtr& coords, size_t K) override;
 		void setSearchEF(size_t ef) override;
 	};
 
-	class BacaWrapper : public HNSWAlgorithm {
-		size_t ef;
-		HNSW* hnsw;
+	class hnswlibWrapper : public HNSWAlgo {
+		hnswlib::HierarchicalNSW<float>* hnsw;
+		hnswlib::L2Space* space;
+
+	protected:
+		void init() override;
+		void insert(float* data, size_t idx) override;
 
 	public:
-		~BacaWrapper();
-		BacaWrapper(const HNSWConfigPtr& cfg);
-		void build(const FloatVecPtr& coords) override;
+		static const std::string NAME;
+
+		~hnswlibWrapper();
 		IdxVec3DPtr getConnections() const override;
+		hnswlibWrapper(const HNSWConfigPtr& cfg);
 		KNNResultPtr search(const FloatVecPtr& coords, size_t K) override;
 		void setSearchEF(size_t ef) override;
 	};

@@ -149,19 +149,14 @@
   <ItemGroup>
     <ClInclude Include="AppError.hpp" />
     <ClInclude Include="dataOps.hpp" />
-    <ClInclude Include="KNNAlgorithm.hpp" />
-    <ClInclude Include="literals.hpp" />
+    <ClInclude Include="KNNAlgo.hpp" />
     <ClInclude Include="refImplWrappers.hpp" />
-    <ClInclude Include="Timer.hpp" />
-    <ClInclude Include="Unique.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AppError.cpp" />
     <ClCompile Include="dataOps.cpp" />
-    <ClCompile Include="KNNAlgorithm.cpp" />
-    <ClCompile Include="literals.cpp" />
+    <ClCompile Include="KNNAlgo.cpp" />
     <ClCompile Include="refImplWrappers.cpp" />
-    <ClCompile Include="Timer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\references\Baca\Baca.vcxproj">

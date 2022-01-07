@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
+#include "AppError.hpp"
 #include "dataOps.hpp"
-#include "Unique.hpp"
 
 namespace chm {
 	struct KNNResult {
@@ -13,25 +13,25 @@ namespace chm {
 
 	typedef std::shared_ptr<KNNResult> KNNResultPtr;
 
-	class KNNAlgorithm : public Unique {
-		std::string info;
+	class KNNAlgo : public Unique {
+		std::string name;
 
 	protected:
-		KNNAlgorithm(const std::string& info);
+		KNNAlgo(const std::string& name);
 
 	public:
-		virtual ~KNNAlgorithm() = default;
+		virtual ~KNNAlgo() = default;
 		virtual void build(const FloatVecPtr& coords) = 0;
-		std::string getInfo() const;
+		std::string getName() const;
 		virtual KNNResultPtr search(const FloatVecPtr& coords, size_t K) = 0;
 	};
 
-	class TrueKNNAlgorithm : public KNNAlgorithm {
+	class TrueKNNAlgo : public KNNAlgo {
 	protected:
-		TrueKNNAlgorithm(const std::string& info);
+		TrueKNNAlgo(const std::string& name);
 
 	public:
-		virtual ~TrueKNNAlgorithm() = default;
+		virtual ~TrueKNNAlgo() = default;
 	};
 
 	struct HNSWConfig {
@@ -46,16 +46,22 @@ namespace chm {
 
 	typedef std::shared_ptr<HNSWConfig> HNSWConfigPtr;
 
-	class HNSWAlgorithm : public KNNAlgorithm {
+	class HNSWAlgo : public KNNAlgo {
 	protected:
 		const HNSWConfigPtr cfg;
 
 		size_t getElementCount(const FloatVecPtr& coords) const;
-		HNSWAlgorithm(const HNSWConfigPtr& cfg, const std::string& info);
+		HNSWAlgo(const HNSWConfigPtr& cfg, const std::string& name);
+		virtual void init() = 0;
+		virtual void insert(float* data, size_t idx) = 0;
 
 	public:
-		virtual ~HNSWAlgorithm() = default;
+		virtual ~HNSWAlgo() = default;
+		void build(const FloatVecPtr& coords) override;
+		IdxVec3DPtr buildAndTrack(const FloatVecPtr& coords, std::ostream& stream);
 		virtual IdxVec3DPtr getConnections() const = 0;
 		virtual void setSearchEF(size_t ef) = 0;
 	};
+
+	typedef std::shared_ptr<HNSWAlgo> HNSWAlgoPtr;
 }

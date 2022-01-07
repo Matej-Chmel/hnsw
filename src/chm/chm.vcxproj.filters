@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="KNNAlgorithm.hpp">
+    <ClInclude Include="KNNAlgo.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="refImplWrappers.hpp">
@@ -24,36 +24,21 @@
     <ClInclude Include="AppError.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="literals.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="dataOps.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Timer.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Unique.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="KNNAlgorithm.cpp">
+    <ClCompile Include="KNNAlgo.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="AppError.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="literals.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="refImplWrappers.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="dataOps.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Timer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
