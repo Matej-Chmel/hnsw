@@ -222,7 +222,13 @@ public:
 	int Mmax_;
 	int Mmax0_;
 	int efConstruction_;
+
+	#ifdef USE_STD_RANDOM
+	double ml_;
+	#else
 	float ml_;
+	#endif
+
 	int max_node_count_;
 	int min_M_;
 
@@ -266,7 +272,21 @@ public:
 
 	uint32_t vector_parts;      // vector_size / number of 16-bit values in vector register
 
-	HNSW(int M, int Mmax, int efConstruction)
+	#ifdef USE_STD_RANDOM
+
+	std::default_random_engine gen;
+
+	int32_t getRandomLevel();
+
+	#endif
+
+	HNSW(
+		int M, int Mmax, int efConstruction
+
+		#ifdef USE_STD_RANDOM
+		, unsigned int seed
+		#endif
+	)
 		: M_(M),
           Mmax_(Mmax),
           Mmax0_(Mmax * 2),
@@ -276,7 +296,16 @@ public:
           data_cleaned_(true),
           min_M_(M / 2)
 	{
+		#ifdef USE_STD_RANDOM
+
+		ml_ = 1 / log(1.0 * M_);
+		this->gen.seed(seed);
+
+		#else
+
         ml_ = 1 / log(0.8 * M);
+
+		#endif
 	}
 
 	~HNSW()

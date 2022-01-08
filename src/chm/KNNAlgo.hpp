@@ -39,9 +39,9 @@ namespace chm {
 		const size_t efConstruction;
 		const size_t M;
 		const size_t maxElements;
-		const size_t seed;
+		const unsigned int seed;
 
-		HNSWConfig(size_t dim, size_t efConstruction, size_t M, size_t maxElements, size_t seed);
+		HNSWConfig(size_t dim, size_t efConstruction, size_t M, size_t maxElements, unsigned int seed);
 	};
 
 	typedef std::shared_ptr<HNSWConfig> HNSWConfigPtr;

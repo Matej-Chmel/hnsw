@@ -1,5 +1,15 @@
 #include "hnsw.h"
 
+#ifdef USE_STD_RANDOM
+
+int32_t HNSW::getRandomLevel() {
+	std::uniform_real_distribution<double> dist(0.0, 1.0);
+	const auto r = -log(dist(this->gen)) * this->ml_;
+	return int32_t(r);
+}
+
+#endif
+
 void HNSW::init(uint32_t vector_size, uint32_t p_max_node_count)
 {
     data_cleaned_ = false;
@@ -162,7 +172,16 @@ void HNSW::query(const char* filename, const char* querydatasetname, const char*
 
 void HNSW::insert(float* q)
 {
+	#ifdef USE_STD_RANDOM
+
+	auto l = this->getRandomLevel();
+
+	#else
+
     int32_t l = -log(((float)(rand() % 10000 + 1)) / 10000) * ml_;
+
+	#endif
+
     int32_t L = layers_.size() - 1;
     Node* down_node = nullptr;
     Node* prev = nullptr;

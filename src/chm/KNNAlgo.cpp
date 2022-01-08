@@ -14,7 +14,7 @@ namespace chm {
 		this->indices.resize(queryCount);
 	}
 
-	HNSWConfig::HNSWConfig::HNSWConfig(size_t dim, size_t efConstruction, size_t M, size_t maxElements, size_t seed)
+	HNSWConfig::HNSWConfig::HNSWConfig(size_t dim, size_t efConstruction, size_t M, size_t maxElements, unsigned int seed)
 		: dim(dim), efConstruction(efConstruction), M(M), maxElements(maxElements), seed(seed) {}
 
 	size_t HNSWAlgo::getElementCount(const FloatVecPtr& coords) const {

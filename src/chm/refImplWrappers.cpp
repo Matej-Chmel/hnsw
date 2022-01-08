@@ -6,7 +6,7 @@ namespace chm {
 	BacaWrapper::BacaWrapper(const HNSWConfigPtr& cfg) : HNSWAlgo(cfg, BacaWrapper::NAME), ef(0), hnsw(nullptr) {}
 
 	void BacaWrapper::init() {
-		this->hnsw = new HNSW(int(this->cfg->M), int(this->cfg->M), int(this->cfg->efConstruction));
+		this->hnsw = new HNSW(int(this->cfg->M), int(this->cfg->M), int(this->cfg->efConstruction), this->cfg->seed);
 		this->hnsw->init(uint32_t(this->cfg->dim), uint32_t(this->cfg->maxElements));
 	}
 
