@@ -1114,11 +1114,26 @@ void HNSW::selectNeighbors(std::vector<Neighbors>& W, std::vector<Neighbors>& R,
         return;
     }
     int s = 2;
+
+	#ifdef NO_EXTRA_NEIGHBOR
+
+	int i = 1;
+
+	#else
+
     int i = 2;
+
+	#endif
+
     R.clear();
     std::sort(W.begin(), W.end(), neighborcmp_nearest());  // TODO - use heap instead of sort
     R.emplace_back(W[0]);
+
+	#ifndef NO_EXTRA_NEIGHBOR
+
     R.emplace_back(W[1]);
+
+	#endif
 
     while(i < W.size() && s < M)
     {
