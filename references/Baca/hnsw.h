@@ -206,10 +206,14 @@ struct CompareByDistanceInTuple {
 	}
 };
 
-
 struct CompareByDistanceInTupleHeap {
-	constexpr bool operator()(std::tuple<Node*, int32_t> i1, std::tuple<Node*, int32_t> i2) const noexcept
-	{
+	constexpr bool operator()(
+		#ifdef NO_APPR_DISTANCES
+		std::tuple<Node*, float> i1, std::tuple<Node*, float> i2
+		#else
+		std::tuple<Node*, int32_t> i1, std::tuple<Node*, int32_t> i2
+		#endif
+	) const noexcept {
 		return std::get<1>(i1) > std::get<1>(i2);
 	}
 };

@@ -752,7 +752,15 @@ void HNSW::searchLayerOne(float* q)
 
 void HNSW::searchLayer(float* q, int ef)
 {
-    std::vector<std::tuple<Node*, int32_t>> C;
+	#ifdef NO_APPR_DISTANCES
+
+    std::vector<std::tuple<Node*, float>> C;
+
+	#else
+
+	std::vector<std::tuple<Node*, int32_t>> C;
+
+	#endif
     
     //W_.push_back(ep);
     for (auto n : W_)
