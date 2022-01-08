@@ -1113,15 +1113,16 @@ void HNSW::selectNeighbors(std::vector<Neighbors>& W, std::vector<Neighbors>& R,
         R = W;
         return;
     }
-    int s = 2;
-
+    
 	#ifdef NO_EXTRA_NEIGHBOR
 
 	int i = 1;
+	int s = 1;
 
 	#else
 
     int i = 2;
+	int s = 2;
 
 	#endif
 

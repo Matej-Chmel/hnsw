@@ -7,7 +7,7 @@ constexpr auto ELEMENT_MIN = 0.f;
 constexpr unsigned int ELEMENT_SEED = 100;
 constexpr unsigned int LEVEL_SEED = 100;
 constexpr size_t MAX_NEIGHBORS = 16;
-constexpr size_t NODE_COUNT = 100;
+constexpr size_t NODE_COUNT = 1000;
 
 int main() {
 	return chm::Runner(
