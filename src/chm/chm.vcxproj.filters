@@ -27,6 +27,12 @@
     <ClInclude Include="dataOps.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="DebugHNSW.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DebugHnswlib.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="KNNAlgo.cpp">
@@ -39,6 +45,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="dataOps.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DebugHnswlib.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
