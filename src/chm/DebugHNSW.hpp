@@ -37,7 +37,7 @@ namespace chm {
 		virtual void searchLowerLayers(size_t lc) = 0;
 		virtual NodeVecPtr getLowerLayerResults() = 0;
 		virtual void selectOriginalNeighbors(size_t lc) = 0;
-		virtual NodeVecPtr getOriginalNeighbors(size_t lc) = 0;
+		virtual NodeVecPtr getOriginalNeighbors() = 0;
 		virtual void connect(size_t lc) = 0;
 		virtual IdxVecPtr getNeighborsForNode(size_t nodeIdx, size_t lc) = 0;
 		virtual void prepareNextLayer(size_t lc) = 0;

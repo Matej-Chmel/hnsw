@@ -239,7 +239,7 @@ namespace chm {
 		this->hnsw->getNeighborsByHeuristic2(this->local.top_candidates, this->hnsw->M_);
 	}
 
-	NodeVecPtr DebugHnswlib::getOriginalNeighbors(size_t level) {
+	NodeVecPtr DebugHnswlib::getOriginalNeighbors() {
 		return this->vecFromTopCandidates();
 	}
 
@@ -395,11 +395,6 @@ namespace chm {
 		return this->hnsw->enterpoint_node_;
 	}
 
-	void hnswlibDebugWrapper::init() {
-		hnswlibWrapper::init();
-		this->debugObj = new DebugHnswlib(this->hnsw);
-	}
-
 	void hnswlibDebugWrapper::insert(float* data, size_t idx) {
 		directDebugInsert(this->debugObj, data, idx);
 	}
@@ -408,7 +403,16 @@ namespace chm {
 		delete this->debugObj;
 	}
 
+	DebugHNSW* hnswlibDebugWrapper::getDebugObject() {
+		return this->debugObj;
+	}
+
 	hnswlibDebugWrapper::hnswlibDebugWrapper(const HNSWConfigPtr& cfg) : hnswlibWrapper(cfg, "hnswlib-HNSW-Debug"), debugObj(nullptr) {}
+
+	void hnswlibDebugWrapper::init() {
+		hnswlibWrapper::init();
+		this->debugObj = new DebugHnswlib(this->hnsw);
+	}
 
 	DebugBaca::DebugBaca(baca::HNSW* hnsw) : hnsw(hnsw), local{} {}
 
@@ -583,7 +587,7 @@ namespace chm {
 		this->hnsw->selectNeighbors(this->hnsw->W_, this->local.R, this->hnsw->M_, false);
 	}
 
-	NodeVecPtr DebugBaca::getOriginalNeighbors(size_t lc) {
+	NodeVecPtr DebugBaca::getOriginalNeighbors() {
 		return vecFromNeighbors(this->local.R);
 	}
 
@@ -684,11 +688,6 @@ namespace chm {
 		return size_t(this->hnsw->layers_.back()->ep_node_order);
 	}
 
-	void BacaDebugWrapper::init() {
-		BacaWrapper::init();
-		this->debugObj = new DebugBaca(this->hnsw);
-	}
-
 	void BacaDebugWrapper::insert(float* data, size_t idx) {
 		directDebugInsert(this->debugObj, data, idx);
 	}
@@ -698,4 +697,13 @@ namespace chm {
 	}
 
 	BacaDebugWrapper::BacaDebugWrapper(const HNSWConfigPtr& cfg) : BacaWrapper(cfg, "Baca-HNSW-Debug"), debugObj(nullptr) {}
+
+	DebugHNSW* BacaDebugWrapper::getDebugObject() {
+		return this->debugObj;
+	}
+
+	void BacaDebugWrapper::init() {
+		BacaWrapper::init();
+		this->debugObj = new DebugBaca(this->hnsw);
+	}
 }

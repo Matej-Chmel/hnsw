@@ -48,7 +48,7 @@ namespace chm {
 		void searchLowerLayers(size_t lc) override;
 		NodeVecPtr getLowerLayerResults() override;
 		void selectOriginalNeighbors(size_t lc) override;
-		NodeVecPtr getOriginalNeighbors(size_t lc) override;
+		NodeVecPtr getOriginalNeighbors() override;
 		void connect(size_t lc) override;
 		IdxVecPtr getNeighborsForNode(size_t nodeIdx, size_t lc) override;
 		void prepareNextLayer(size_t lc) override;
@@ -60,12 +60,13 @@ namespace chm {
 		DebugHnswlib* debugObj;
 
 	protected:
-		void init() override;
 		void insert(float* data, size_t idx) override;
 
 	public:
 		~hnswlibDebugWrapper();
+		DebugHNSW* getDebugObject() override;
 		hnswlibDebugWrapper(const HNSWConfigPtr& cfg);
+		void init() override;
 	};
 
 	typedef std::vector<baca::Neighbors> NeighborsVec;
@@ -103,7 +104,7 @@ namespace chm {
 		void searchLowerLayers(size_t lc) override;
 		NodeVecPtr getLowerLayerResults() override;
 		void selectOriginalNeighbors(size_t lc) override;
-		NodeVecPtr getOriginalNeighbors(size_t lc) override;
+		NodeVecPtr getOriginalNeighbors() override;
 		void connect(size_t lc) override;
 		IdxVecPtr getNeighborsForNode(size_t nodeIdx, size_t lc) override;
 		void prepareNextLayer(size_t lc) override;
@@ -115,11 +116,12 @@ namespace chm {
 		DebugBaca* debugObj;
 
 	protected:
-		void init() override;
 		void insert(float* data, size_t idx) override;
 
 	public:
 		~BacaDebugWrapper();
 		BacaDebugWrapper(const HNSWConfigPtr& cfg);
+		DebugHNSW* getDebugObject() override;
+		void init() override;
 	};
 }

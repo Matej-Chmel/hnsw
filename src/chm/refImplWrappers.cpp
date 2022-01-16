@@ -5,11 +5,6 @@ namespace chm {
 
 	BacaWrapper::BacaWrapper(const HNSWConfigPtr& cfg, const std::string& name) : HNSWAlgo(cfg, name), ef(0), hnsw(nullptr) {}
 
-	void BacaWrapper::init() {
-		this->hnsw = new baca::HNSW(int(this->cfg->M), int(this->cfg->M), int(this->cfg->efConstruction), this->cfg->seed);
-		this->hnsw->init(uint32_t(this->cfg->dim), uint32_t(this->cfg->maxElements));
-	}
-
 	void BacaWrapper::insert(float* data, size_t) {
 		this->hnsw->insert(data);
 	}
@@ -45,6 +40,15 @@ namespace chm {
 		return res;
 	}
 
+	DebugHNSW* BacaWrapper::getDebugObject() {
+		return nullptr;
+	}
+
+	void BacaWrapper::init() {
+		this->hnsw = new baca::HNSW(int(this->cfg->M), int(this->cfg->M), int(this->cfg->efConstruction), this->cfg->seed);
+		this->hnsw->init(uint32_t(this->cfg->dim), uint32_t(this->cfg->maxElements));
+	}
+
 	KNNResultPtr BacaWrapper::search(const FloatVecPtr& coords, size_t K) {
 		auto& c = *coords;
 		const auto count = this->getElementCount(coords);
@@ -75,11 +79,6 @@ namespace chm {
 
 	void BacaWrapper::setSearchEF(size_t ef) {
 		this->ef = ef;
-	}
-
-	void hnswlibWrapper::init() {
-		this->space = new hnswlib::L2Space(this->cfg->dim);
-		this->hnsw = new hnswlib::HierarchicalNSW<float>(this->space, this->cfg->maxElements, this->cfg->M, this->cfg->efConstruction, this->cfg->seed);
 	}
 
 	void hnswlibWrapper::insert(float* data, size_t idx) {
@@ -115,9 +114,18 @@ namespace chm {
 		return res;
 	}
 
+	DebugHNSW* hnswlibWrapper::getDebugObject() {
+		return nullptr;
+	}
+
 	hnswlibWrapper::hnswlibWrapper(const HNSWConfigPtr& cfg) : hnswlibWrapper(cfg, "hnswlib-HNSW") {}
 
 	hnswlibWrapper::hnswlibWrapper(const HNSWConfigPtr& cfg, const std::string& name) : HNSWAlgo(cfg, name), hnsw(nullptr), space(nullptr) {}
+
+	void hnswlibWrapper::init() {
+		this->space = new hnswlib::L2Space(this->cfg->dim);
+		this->hnsw = new hnswlib::HierarchicalNSW<float>(this->space, this->cfg->maxElements, this->cfg->M, this->cfg->efConstruction, this->cfg->seed);
+	}
 
 	KNNResultPtr hnswlibWrapper::search(const FloatVecPtr& coords, size_t K) {
 		const auto& c = *coords;

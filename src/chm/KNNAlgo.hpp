@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 #include "AppError.hpp"
-#include "dataOps.hpp"
+#include "DebugHNSW.hpp"
 
 namespace chm {
 	struct KNNResult {
@@ -52,7 +52,6 @@ namespace chm {
 
 		size_t getElementCount(const FloatVecPtr& coords) const;
 		HNSWAlgo(const HNSWConfigPtr& cfg, const std::string& name);
-		virtual void init() = 0;
 		virtual void insert(float* data, size_t idx) = 0;
 
 	public:
@@ -60,6 +59,8 @@ namespace chm {
 		void build(const FloatVecPtr& coords) override;
 		IdxVec3DPtr buildAndTrack(const FloatVecPtr& coords, std::ostream& stream);
 		virtual IdxVec3DPtr getConnections() const = 0;
+		virtual DebugHNSW* getDebugObject() = 0;
+		virtual void init() = 0;
 		virtual void setSearchEF(size_t ef) = 0;
 	};
 
