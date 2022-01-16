@@ -1,3 +1,5 @@
 #include "layer.h"
 
-int Layer::max_layer = 0;
+namespace baca {
+	int Layer::max_layer = 0;
+}

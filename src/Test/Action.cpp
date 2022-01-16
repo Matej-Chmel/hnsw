@@ -15,7 +15,7 @@ namespace chm {
 				algo = std::make_shared<BacaWrapper>(cfg);
 				break;
 			case HNSWAlgoKind::BACA_DEBUG:
-				throwUnknownKind(k);
+				algo = std::make_shared<BacaDebugWrapper>(cfg);
 				break;
 			case HNSWAlgoKind::HNSWLIB:
 				algo = std::make_shared<hnswlibWrapper>(cfg);

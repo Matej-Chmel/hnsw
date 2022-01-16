@@ -5,10 +5,17 @@ namespace chm {
 	struct Node {
 		float distance;
 		size_t idx;
+
+		Node();
+		Node(float distance, size_t idx);
 	};
 
 	typedef std::vector<Node> NodeVec;
 	typedef std::shared_ptr<NodeVec> NodeVecPtr;
+
+	struct NodeComparator {
+		bool operator()(const Node& a, const Node& b) const;
+	};
 
 	struct LevelRange {
 		size_t start;

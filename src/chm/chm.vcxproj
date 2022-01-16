@@ -157,6 +157,7 @@
   <ItemGroup>
     <ClCompile Include="AppError.cpp" />
     <ClCompile Include="dataOps.cpp" />
+    <ClCompile Include="DebugHNSW.cpp" />
     <ClCompile Include="debugWrappers.cpp" />
     <ClCompile Include="KNNAlgo.cpp" />
     <ClCompile Include="refImplWrappers.cpp" />

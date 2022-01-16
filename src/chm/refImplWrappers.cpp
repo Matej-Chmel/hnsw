@@ -1,10 +1,12 @@
 #include "refImplWrappers.hpp"
 
 namespace chm {
-	BacaWrapper::BacaWrapper(const HNSWConfigPtr& cfg) : HNSWAlgo(cfg, "Baca-HNSW"), ef(0), hnsw(nullptr) {}
+	BacaWrapper::BacaWrapper(const HNSWConfigPtr& cfg) : BacaWrapper(cfg, "Baca-HNSW") {}
+
+	BacaWrapper::BacaWrapper(const HNSWConfigPtr& cfg, const std::string& name) : HNSWAlgo(cfg, name), ef(0), hnsw(nullptr) {}
 
 	void BacaWrapper::init() {
-		this->hnsw = new HNSW(int(this->cfg->M), int(this->cfg->M), int(this->cfg->efConstruction), this->cfg->seed);
+		this->hnsw = new baca::HNSW(int(this->cfg->M), int(this->cfg->M), int(this->cfg->efConstruction), this->cfg->seed);
 		this->hnsw->init(uint32_t(this->cfg->dim), uint32_t(this->cfg->maxElements));
 	}
 

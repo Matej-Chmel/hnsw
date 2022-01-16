@@ -33,6 +33,7 @@ constexpr float VECTOR_FRAGMENT1 = 0.1;
 constexpr float VECTOR_FRAGMENT2 = 0.15;
 #endif
 
+#define DEBUG_MAKE_PUBLIC
 #define NO_APPR_DISTANCES
 #define NO_EXTRA_NEIGHBOR
 #define STORE_NODE_ORDER

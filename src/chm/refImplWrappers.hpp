@@ -7,14 +7,15 @@ namespace chm {
 	class BacaWrapper : public HNSWAlgo {
 	protected:
 		size_t ef;
-		HNSW* hnsw;
+		baca::HNSW* hnsw;
 
 		void init() override;
 		void insert(float* data, size_t) override;
 
 	public:
-		~BacaWrapper();
+		virtual ~BacaWrapper();
 		BacaWrapper(const HNSWConfigPtr& cfg);
+		BacaWrapper(const HNSWConfigPtr& cfg, const std::string& name);
 		IdxVec3DPtr getConnections() const override;
 		KNNResultPtr search(const FloatVecPtr& coords, size_t K) override;
 		void setSearchEF(size_t ef) override;

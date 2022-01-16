@@ -14,7 +14,10 @@ int main() {
 	return chm::Runner(
 		std::make_shared<chm::HNSWConfig>(DIM, EF_CONSTRUCTION, MAX_NEIGHBORS, NODE_COUNT, LEVEL_SEED),
 		std::make_shared<chm::ElementGen>(NODE_COUNT, DIM, ELEMENT_MIN, ELEMENT_MAX, ELEMENT_SEED),
-		{chm::HNSWAlgoKind::HNSWLIB, chm::HNSWAlgoKind::HNSWLIB_DEBUG},
+		{
+			// chm::HNSWAlgoKind::HNSWLIB, chm::HNSWAlgoKind::HNSWLIB_DEBUG
+			chm::HNSWAlgoKind::BACA, chm::HNSWAlgoKind::BACA_DEBUG
+		},
 		TRACK,
 		std::cout
 	).runAll();

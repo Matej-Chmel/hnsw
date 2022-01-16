@@ -30,8 +30,20 @@ namespace chm {
 		debugObj->setupEnterPoint();
 	}
 
-	HnswlibLocals::~HnswlibLocals() {
-		this->clear();
+	NodeVecPtr vecFromNeighbors(NeighborsVec& v) {
+		auto len = v.size();
+		auto res = std::make_shared<NodeVec>();
+		auto& r = *res;
+
+		r.reserve(len);
+
+		for(size_t i = 0; i < len; i++) {
+			auto& n = v[i];
+			r.emplace_back(n.distance, n.node_order);
+		}
+
+		std::sort(r.begin(), r.end(), NodeComparator());
+		return res;
 	}
 
 	void HnswlibLocals::clear() {
@@ -397,4 +409,293 @@ namespace chm {
 	}
 
 	hnswlibDebugWrapper::hnswlibDebugWrapper(const HNSWConfigPtr& cfg) : hnswlibWrapper(cfg, "hnswlib-HNSW-Debug"), debugObj(nullptr) {}
+
+	DebugBaca::DebugBaca(baca::HNSW* hnsw) : hnsw(hnsw), local{} {}
+
+	void DebugBaca::startInsert(float* coords, size_t) {
+		this->local.q = coords;
+
+		#ifdef USE_STD_RANDOM
+
+		this->local.l = this->hnsw->getRandomLevel();
+
+		#else
+
+		int32_t l = -log(((float)(rand() % 10000 + 1)) / 10000) * ml_;
+
+		#endif
+
+		this->local.L = this->hnsw->layers_.size() - 1;
+		this->local.down_node = nullptr;
+		this->local.prev = nullptr;
+		this->local.ep = nullptr;
+		this->local.ep_node_order = baca::pointer_t{};
+		this->local.R = NeighborsVec{};
+		this->local.Woverflow = NeighborsVec{};
+		this->local.Roverflow = NeighborsVec{};
+
+		this->hnsw->actual_node_count_++;
+		if(this->hnsw->actual_node_count_ >= this->hnsw->max_node_count_) {
+			throw std::runtime_error("HNSW: exceeded maximal number of nodes\n");
+		}
+		memcpy(this->hnsw->getNodeVector(this->hnsw->actual_node_count_), this->local.q, sizeof(float) * this->hnsw->vector_size_);
+
+		#ifdef VISIT_HASH
+
+		this->hnsw->visited_.clear();
+
+		#endif
+
+		/*
+		// this code checks whether the new multi-level node is not close to other multi-level nodes
+		if (actual_node_count_ > 100 && l > 0)
+		{
+			knn(q, Mmax0_);
+			actual_node_count_--;
+			bool is_multi_level_close = false;
+
+			for(auto& n : W_)
+			{
+				if (n.node->pivot)
+				{
+					is_multi_level_close = true;
+					break;
+				}
+			}
+
+			if (is_multi_level_close)
+			{
+				l = 0;
+			}
+		}
+		*/
+
+		#ifdef COMPUTE_APPROXIMATE_VECTOR
+
+		if(actual_node_count_ == 0) {
+			memcpy(min_vector, q, sizeof(float) * vector_size_);
+			memcpy(max_vector, q, sizeof(float) * vector_size_);
+			min_value = q[0];
+			max_value = q[0];
+		}
+
+		for(int i = 0; i < vector_size_; i++) {
+			min_vector[i] = q[i] < min_vector[i] ? q[i] : min_vector[i];
+			max_vector[i] = q[i] > max_vector[i] ? q[i] : max_vector[i];
+			min_value = std::min(min_value, q[i]);
+			max_value = std::max(max_value, q[i]);
+		}
+
+		#endif
+
+		if((this->hnsw->actual_node_count_ % 10000) == 0) {
+			std::cout << this->hnsw->actual_node_count_ << '\n';
+		}
+
+		this->hnsw->W_.clear();
+	}
+
+	size_t DebugBaca::getLatestLevel() {
+		return size_t(this->local.l);
+	}
+
+	void DebugBaca::prepareUpperSearch() {
+		if(this->local.L >= 0) {
+			this->local.ep = this->hnsw->layers_[this->local.L]->enter_point;
+			this->local.ep_node_order = this->hnsw->layers_[this->local.L]->ep_node_order;
+			auto dist = this->hnsw->distance(this->hnsw->getNodeVector(this->local.ep_node_order), this->local.q);
+
+			#ifdef VISIT_HASH
+
+			this->hnsw->visited_.insert(this->local.ep_node_order);
+
+			#else
+
+			ep->actual_node_count_ = actual_node_count_;
+
+			#endif
+
+			this->hnsw->W_.emplace_back(this->local.ep, dist, this->local.ep_node_order);
+		}
+	}
+
+	LevelRange DebugBaca::getUpperRange() {
+		if(this->local.L < 0)
+			return {0, 0, false};
+
+		return {size_t(this->local.L), size_t(this->local.l), true};
+	}
+
+	void DebugBaca::searchUpperLayers(size_t) {
+		this->hnsw->searchLayerOne(this->local.q);
+		this->hnsw->changeLayer();
+	}
+
+	Node DebugBaca::getNearestNode() {
+		auto& n = this->hnsw->W_[0];
+		return {n.distance, n.node_order};
+	}
+
+	void DebugBaca::prepareLowerSearch() {
+		// No preparation needed.
+	}
+
+	LevelRange DebugBaca::getLowerRange() {
+		if(this->local.L < 0)
+			return {0, 0, false};
+
+		return {size_t(std::min(this->local.L, this->local.l)), 0, true};
+	}
+
+	void DebugBaca::searchLowerLayers(size_t i) {
+		this->local.new_node = new baca::Node(this->hnsw->Mmax_, nullptr);
+
+		#ifdef STORE_NODE_ORDER
+
+		this->local.new_node->setOrder(this->hnsw->actual_node_count_);
+
+		#endif
+
+		this->hnsw->layers_[i]->node_count++;
+		this->hnsw->layers_[i]->nodes.push_back(this->local.new_node);
+
+		this->local.actualMmax = (i == 0 ? this->hnsw->Mmax0_ : this->hnsw->Mmax_);
+
+		if(this->local.l > this->local.L && i == this->local.L) {
+			this->local.down_node = this->local.new_node; // remember the top node, if we are going to add layers_
+		}
+
+		// the main logic
+		#ifdef VISIT_HASH
+
+		this->hnsw->visited_.clear();
+
+		#endif
+
+		this->hnsw->searchLayer(this->local.q, this->hnsw->efConstruction_);
+	}
+
+	NodeVecPtr DebugBaca::getLowerLayerResults() {
+		return vecFromNeighbors(this->hnsw->W_);
+	}
+
+	void DebugBaca::selectOriginalNeighbors(size_t lc) {
+		this->hnsw->selectNeighbors(this->hnsw->W_, this->local.R, this->hnsw->M_, false);
+	}
+
+	NodeVecPtr DebugBaca::getOriginalNeighbors(size_t lc) {
+		return vecFromNeighbors(this->local.R);
+	}
+
+	void DebugBaca::connect(size_t lc) {
+		for(int i = 0; i < this->local.R.size(); i++) {
+			baca::Neighbors& e = this->local.R[i];
+			baca::Node* enode = e.node;
+			#ifdef COUNT_INWARD_DEGREE
+			enode->inward_count++;
+			#endif
+			this->local.new_node->neighbors.emplace_back(enode, e.distance, e.node_order);
+
+			bool insert_new = true;
+			if(enode->neighbors.size() == this->local.actualMmax) {
+				if(!enode->neighbors_sorted) {
+					std::sort(enode->neighbors.begin(), enode->neighbors.end(), baca::neighborcmp_nearest());
+					enode->neighbors_sorted = true;
+				}
+
+				this->local.Roverflow.clear();
+				this->local.Woverflow.clear();
+				this->local.Woverflow = enode->neighbors;
+				this->local.Woverflow.emplace_back(this->local.new_node, e.distance, this->hnsw->actual_node_count_);
+				this->hnsw->selectNeighbors(this->local.Woverflow, this->local.Roverflow, this->local.actualMmax, false);
+				#ifdef COUNT_INWARD_DEGREE
+				for(auto item : enode->neighbors) {
+					item.node->inward_count--;
+				}
+				#endif
+				enode->neighbors.clear();
+				for(auto r : this->local.Roverflow) {
+					#ifdef COUNT_INWARD_DEGREE
+					r.node->inward_count++;
+					#endif
+					enode->neighbors.emplace_back(r);
+				}
+
+			} else {
+				#ifdef COUNT_INWARD_DEGREE
+				new_node->inward_count++;
+				#endif
+				enode->neighbors.emplace_back(this->local.new_node, e.distance, this->hnsw->actual_node_count_);
+			}
+		}
+	}
+
+	IdxVecPtr DebugBaca::getNeighborsForNode(size_t nodeIdx, size_t lc) {
+		auto& candidates = this->hnsw->layers_[lc]->nodes;
+		auto res = std::make_shared<IdxVec>();
+		auto& r = *res;
+
+		for(auto& node : candidates) {
+			if(node->order == nodeIdx) {
+				auto& neighbors = node->neighbors;
+				r.reserve(neighbors.size());
+
+				for(auto& ne : neighbors)
+					r.push_back(ne.node_order);
+
+				break;
+			}
+		}
+
+		std::sort(r.begin(), r.end());
+		return res;
+	}
+
+	void DebugBaca::prepareNextLayer(size_t i) {
+		// connecting the nodes in different layers_
+		if(this->local.prev != nullptr) {
+			this->local.prev->lower_layer = this->local.new_node;
+		}
+		this->local.prev = this->local.new_node;
+
+		// switch the actual layer (W_ nodes are replaced by their bottom counterparts)
+		if(i > 0)
+			this->hnsw->changeLayer();
+	}
+
+	void DebugBaca::setupEnterPoint() {
+		if(this->local.l > this->local.L) {
+			// adding layers_
+			for(int32_t i = this->local.L + 1; i <= this->local.l; i++) {
+				baca::Node* node = new baca::Node(this->hnsw->Mmax_, this->local.down_node);
+				this->hnsw->layers_.emplace_back(std::make_unique<baca::Layer>(node, this->hnsw->actual_node_count_));
+				this->local.down_node = node;
+
+				#ifdef STORE_NODE_ORDER
+
+				node->setOrder(this->hnsw->actual_node_count_);
+
+				#endif
+			}
+		}
+	}
+
+	size_t DebugBaca::getEnterPoint() {
+		return size_t(this->hnsw->layers_.back()->ep_node_order);
+	}
+
+	void BacaDebugWrapper::init() {
+		BacaWrapper::init();
+		this->debugObj = new DebugBaca(this->hnsw);
+	}
+
+	void BacaDebugWrapper::insert(float* data, size_t idx) {
+		directDebugInsert(this->debugObj, data, idx);
+	}
+
+	BacaDebugWrapper::~BacaDebugWrapper() {
+		delete this->debugObj;
+	}
+
+	BacaDebugWrapper::BacaDebugWrapper(const HNSWConfigPtr& cfg) : BacaWrapper(cfg, "Baca-HNSW-Debug"), debugObj(nullptr) {}
 }
