@@ -150,14 +150,14 @@
     <ClInclude Include="AppError.hpp" />
     <ClInclude Include="dataOps.hpp" />
     <ClInclude Include="DebugHNSW.hpp" />
-    <ClInclude Include="DebugHnswlib.hpp" />
+    <ClInclude Include="debugWrappers.hpp" />
     <ClInclude Include="KNNAlgo.hpp" />
     <ClInclude Include="refImplWrappers.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AppError.cpp" />
     <ClCompile Include="dataOps.cpp" />
-    <ClCompile Include="DebugHnswlib.cpp" />
+    <ClCompile Include="debugWrappers.cpp" />
     <ClCompile Include="KNNAlgo.cpp" />
     <ClCompile Include="refImplWrappers.cpp" />
   </ItemGroup>

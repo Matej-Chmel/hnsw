@@ -1,10 +1,48 @@
 #include <fstream>
 #include "Action.hpp"
-#include "chm/refImplWrappers.hpp"
+#include "chm/debugWrappers.hpp"
 
 namespace chm {
+	void throwUnknownKind(HNSWAlgoKind k) {
+		throw AppError("Unknown algo kind: "_f << int(k) << '.');
+	}
+
+	HNSWAlgoStatePtr getHNSWAlgoState(HNSWAlgoKind k, const HNSWConfigPtr& cfg, const fs::path& outDir) {
+		HNSWAlgoPtr algo;
+
+		switch(k) {
+			case HNSWAlgoKind::BACA:
+				algo = std::make_shared<BacaWrapper>(cfg);
+				break;
+			case HNSWAlgoKind::BACA_DEBUG:
+				throwUnknownKind(k);
+				break;
+			case HNSWAlgoKind::HNSWLIB:
+				algo = std::make_shared<hnswlibWrapper>(cfg);
+				break;
+			case HNSWAlgoKind::HNSWLIB_DEBUG:
+				algo = std::make_shared<hnswlibDebugWrapper>(cfg);
+				break;
+			default:
+				throwUnknownKind(k);
+		}
+
+		return std::make_shared<HNSWAlgoState>(algo, outDir);
+	}
+
 	fs::path getPath(const HNSWAlgoPtr& algo, const std::string& connType, const fs::path& outDir) {
 		return outDir / (""_f << algo->getName() << '-' << connType << ".log").str();
+	}
+
+	void HNSWAlgoState::writeFinalConn() {
+		std::ofstream s(this->finalConnPath);
+		writeConnections(this->conn, s);
+	}
+
+	void HNSWAlgoState::build(const FloatVecPtr& coords) {
+		this->algo->build(coords);
+		this->conn = this->algo->getConnections();
+		this->writeFinalConn();
 	}
 
 	void HNSWAlgoState::buildAndTrack(const FloatVecPtr& coords) {
@@ -12,33 +50,26 @@ namespace chm {
 			std::ofstream s(this->trackConnPath);
 			this->conn = this->algo->buildAndTrack(coords, s);
 		}
-
-		std::ofstream s(this->finalConnPath);
-		writeConnections(this->conn, s);
+		this->writeFinalConn();
 	}
 
-	const IdxVec3DPtr HNSWAlgoState::getConnections() {
+	const IdxVec3DPtr HNSWAlgoState::getConnections() const {
 		return this->conn;
+	}
+
+	std::string HNSWAlgoState::getName() const {
+		return this->algo->getName();
 	}
 
 	HNSWAlgoState::HNSWAlgoState(HNSWAlgoPtr algo, const fs::path& outDir)
 		: algo(algo), conn(nullptr), finalConnPath(getPath(algo, "final", outDir)), trackConnPath(getPath(algo, "track", outDir)) {}
 
-	CommonState::CommonState(const HNSWConfigPtr& cfg, const ElementGenPtr& gen, const fs::path& outDir) : algoStates{
-		{
-			BacaWrapper::NAME,
-			std::make_shared<HNSWAlgoState>(
-				std::make_shared<BacaWrapper>(cfg), outDir
-			)
-		},
-		{
-			hnswlibWrapper::NAME,
-			std::make_shared<HNSWAlgoState>(
-				std::make_shared<hnswlibWrapper>(cfg), outDir
-			)
-		}
-	}, cfg(cfg), coords(nullptr), gen(gen), outDir(outDir) {
+	CommonState::CommonState(
+		const HNSWConfigPtr& cfg, const ElementGenPtr& gen, const std::vector<HNSWAlgoKind>& algoKinds, const fs::path& outDir
+	) : cfg(cfg), coords(nullptr), gen(gen), outDir(outDir) {
 
+		for(auto& k : algoKinds)
+			this->algoStates[k] = getHNSWAlgoState(k, this->cfg, this->outDir);
 		ensureDir(this->outDir);
 	}
 
@@ -55,11 +86,15 @@ namespace chm {
 		return this->getActionResult();
 	}
 
-	ActionBuildGraphs::ActionBuildGraphs() : Action("Build graphs") {}
+	ActionBuildGraphs::ActionBuildGraphs(bool track) : Action("Build graphs"), track(track) {}
 
 	ActionResult ActionBuildGraphs::run(CommonState* s) {
 		for(auto& p : s->algoStates)
-			p.second->buildAndTrack(s->coords);
+			if(this->track)
+				p.second->buildAndTrack(s->coords);
+			else
+				p.second->build(s->coords);
+
 		return this->getActionResult();
 	}
 
@@ -69,14 +104,33 @@ namespace chm {
 
 	Test::Test(const std::string& name) : Action(name) {}
 
-	ComparisonTest::ComparisonTest(const std::string& testName, const std::string& algoNameA, const std::string& algoNameB)
-		: Test(testName), algoNameA(algoNameA), algoNameB(algoNameB) {}
+	const HNSWAlgoStatePtr ComparisonTest::getA(const CommonState* const s) const {
+		return this->getState(s, this->kindA);
+	}
+
+	const HNSWAlgoStatePtr ComparisonTest::getB(const CommonState* const s) const {
+		return this->getState(s, this->kindB);
+	}
+
+	const HNSWAlgoStatePtr ComparisonTest::getState(const CommonState* const s, const HNSWAlgoKind& kind) const {
+		return s->algoStates.find(kind)->second;
+	}
+
+	ComparisonTest::ComparisonTest(const std::string& testName, HNSWAlgoKind kindA, HNSWAlgoKind kindB)
+		: Test(testName), kindA(kindA), kindB(kindB) {}
 
 	ComparedConnections ComparisonTest::getComparedConnections(CommonState* s) {
 		return {
-			s->algoStates.find(this->algoNameA)->second->getConnections(),
-			s->algoStates.find(this->algoNameB)->second->getConnections()
+			s->algoStates.find(this->kindA)->second->getConnections(),
+			s->algoStates.find(this->kindB)->second->getConnections()
 		};
+	}
+
+	std::string ComparisonTest::getNames(CommonState* s) {
+		return ("\t"_f <<
+			this->getA(s)->getName() << "\n\t" <<
+			this->getB(s)->getName() << '\n'
+		).str();
 	}
 
 	ActionResult TestLevels::run(CommonState* s) {
@@ -90,7 +144,7 @@ namespace chm {
 		return this->getResult(true);
 	}
 
-	TestLevels::TestLevels(const std::string& algoNameA, const std::string& algoNameB) : ComparisonTest("Levels", algoNameA, algoNameB) {}
+	TestLevels::TestLevels(HNSWAlgoKind kindA, HNSWAlgoKind kindB) : ComparisonTest("Levels", kindA, kindB) {}
 
 	ActionResult TestNeighborsIndices::run(CommonState* s) {
 		const auto conn = this->getComparedConnections(s);
@@ -115,8 +169,7 @@ namespace chm {
 		return this->getResult(true);
 	}
 
-	TestNeighborsIndices::TestNeighborsIndices(const std::string& algoNameA, const std::string& algoNameB)
-		: ComparisonTest("Neighbors indices", algoNameA, algoNameB) {}
+	TestNeighborsIndices::TestNeighborsIndices(HNSWAlgoKind kindA, HNSWAlgoKind kindB) : ComparisonTest("Neighbors indices", kindA, kindB) {}
 
 	ActionResult TestNeighborsLength::run(CommonState* s) {
 		const auto conn = this->getComparedConnections(s);
@@ -135,13 +188,35 @@ namespace chm {
 		return this->getResult(true);
 	}
 
-	TestNeighborsLength::TestNeighborsLength(const std::string& algoNameA, const std::string& algoNameB)
-		: ComparisonTest("Neighbors length", algoNameA, algoNameB) {}
+	TestNeighborsLength::TestNeighborsLength(HNSWAlgoKind kindA, HNSWAlgoKind kindB) : ComparisonTest("Neighbors length", kindA, kindB) {}
 
 	ActionResult TestNodeCount::run(CommonState* s) {
 		const auto conn = this->getComparedConnections(s);
 		return this->getResult(conn.A->size() == s->gen->count && conn.B->size() == s->gen->count);
 	}
 
-	TestNodeCount::TestNodeCount(const std::string& algoNameA, const std::string& algoNameB) : ComparisonTest("Node count", algoNameA, algoNameB) {}
+	TestNodeCount::TestNodeCount(HNSWAlgoKind kindA, HNSWAlgoKind kindB) : ComparisonTest("Node count", kindA, kindB) {}
+
+	ActionResult TestConnections::run(CommonState* s) {
+		ActionResult res{("\nComparing connections between:\n"_f << this->getNames(s)).str(), true};
+		std::vector<ActionPtr> tests{
+			std::make_shared<TestNodeCount>(this->kindA, this->kindB),
+			std::make_shared<TestLevels>(this->kindA, this->kindB),
+			std::make_shared<TestNeighborsLength>(this->kindA, this->kindB),
+			std::make_shared<TestNeighborsIndices>(this->kindA, this->kindB)
+		};
+
+		for(auto& t : tests) {
+			auto testRes = t->run(s);
+			res.msg += '\n' + testRes.msg;
+
+			if(!testRes.success)
+				res.success = false;
+		}
+
+		res.msg += '\n';
+		return res;
+	}
+
+	TestConnections::TestConnections(HNSWAlgoKind kindA, HNSWAlgoKind kindB) : ComparisonTest("Connections", kindA, kindB) {}
 }

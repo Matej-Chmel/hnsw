@@ -10,22 +10,33 @@ namespace chm {
 		fs::path finalConnPath;
 		fs::path trackConnPath;
 
+		void writeFinalConn();
+
 	public:
+		void build(const FloatVecPtr& coords);
 		void buildAndTrack(const FloatVecPtr& coords);
-		const IdxVec3DPtr getConnections();
+		const IdxVec3DPtr getConnections() const;
+		std::string getName() const;
 		HNSWAlgoState(HNSWAlgoPtr algo, const fs::path& outDir);
 	};
 
 	typedef std::shared_ptr<HNSWAlgoState> HNSWAlgoStatePtr;
 
+	enum class HNSWAlgoKind {
+		BACA,
+		BACA_DEBUG,
+		HNSWLIB,
+		HNSWLIB_DEBUG
+	};
+
 	struct CommonState : public Unique {
-		const std::unordered_map<std::string, HNSWAlgoStatePtr> algoStates;
+		std::unordered_map<HNSWAlgoKind, HNSWAlgoStatePtr> algoStates;
 		const HNSWConfigPtr cfg;
 		FloatVecPtr coords;
 		const ElementGenPtr gen;
 		const fs::path outDir;
 
-		CommonState(const HNSWConfigPtr& cfg, const ElementGenPtr& gen, const fs::path& outDir);
+		CommonState(const HNSWConfigPtr& cfg, const ElementGenPtr& gen, const std::vector<HNSWAlgoKind>& algoKinds, const fs::path& outDir);
 	};
 
 	struct ActionResult {
@@ -54,8 +65,10 @@ namespace chm {
 	};
 
 	class ActionBuildGraphs : public Action {
+		const bool track;
+
 	public:
-		ActionBuildGraphs();
+		ActionBuildGraphs(bool track);
 		ActionResult run(CommonState* s) override;
 	};
 
@@ -74,34 +87,47 @@ namespace chm {
 	};
 
 	class ComparisonTest : public Test {
-		std::string algoNameA, algoNameB;
+		const HNSWAlgoStatePtr getA(const CommonState* const s) const;
+		const HNSWAlgoStatePtr getB(const CommonState* const s) const;
+		const HNSWAlgoStatePtr getState(const CommonState* const s, const HNSWAlgoKind& kind) const;
 
 	protected:
-		ComparisonTest(const std::string& testName, const std::string& algoNameA, const std::string& algoNameB);
+		HNSWAlgoKind kindA, kindB;
+
+		ComparisonTest(const std::string& testName, HNSWAlgoKind kindA, HNSWAlgoKind kindB);
 		ComparedConnections getComparedConnections(CommonState* s);
+
+	public:
+		std::string getNames(CommonState* s);
 	};
 
 	class TestLevels : public ComparisonTest {
 	public:
 		ActionResult run(CommonState* s) override;
-		TestLevels(const std::string& algoNameA, const std::string& algoNameB);
+		TestLevels(HNSWAlgoKind kindA, HNSWAlgoKind kindB);
 	};
 
 	class TestNeighborsIndices : public ComparisonTest {
 	public:
 		ActionResult run(CommonState* s) override;
-		TestNeighborsIndices(const std::string& algoNameA, const std::string& algoNameB);
+		TestNeighborsIndices(HNSWAlgoKind kindA, HNSWAlgoKind kindB);
 	};
 
 	class TestNeighborsLength : public ComparisonTest {
 	public:
 		ActionResult run(CommonState* s) override;
-		TestNeighborsLength(const std::string& algoNameA, const std::string& algoNameB);
+		TestNeighborsLength(HNSWAlgoKind kindA, HNSWAlgoKind kindB);
 	};
 
 	class TestNodeCount : public ComparisonTest {
 	public:
 		ActionResult run(CommonState* s) override;
-		TestNodeCount(const std::string& algoNameA, const std::string& algoNameB);
+		TestNodeCount(HNSWAlgoKind kindA, HNSWAlgoKind kindB);
+	};
+
+	class TestConnections : public ComparisonTest {
+	public:
+		ActionResult run(CommonState* s) override;
+		TestConnections(HNSWAlgoKind kindA, HNSWAlgoKind kindB);
 	};
 }

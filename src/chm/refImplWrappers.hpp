@@ -5,16 +5,14 @@
 
 namespace chm {
 	class BacaWrapper : public HNSWAlgo {
+	protected:
 		size_t ef;
 		HNSW* hnsw;
 
-	protected:
 		void init() override;
 		void insert(float* data, size_t) override;
 
 	public:
-		static const std::string NAME;
-
 		~BacaWrapper();
 		BacaWrapper(const HNSWConfigPtr& cfg);
 		IdxVec3DPtr getConnections() const override;
@@ -23,19 +21,18 @@ namespace chm {
 	};
 
 	class hnswlibWrapper : public HNSWAlgo {
+	protected:
 		hnswlib::HierarchicalNSW<float>* hnsw;
 		hnswlib::L2Space* space;
 
-	protected:
 		void init() override;
 		void insert(float* data, size_t idx) override;
 
 	public:
-		static const std::string NAME;
-
-		~hnswlibWrapper();
+		virtual ~hnswlibWrapper();
 		IdxVec3DPtr getConnections() const override;
 		hnswlibWrapper(const HNSWConfigPtr& cfg);
+		hnswlibWrapper(const HNSWConfigPtr& cfg, const std::string& name);
 		KNNResultPtr search(const FloatVecPtr& coords, size_t K) override;
 		void setSearchEF(size_t ef) override;
 	};

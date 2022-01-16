@@ -11,6 +11,6 @@ namespace chm {
 
 	public:
 		int runAll();
-		Runner(const HNSWConfigPtr& cfg, const ElementGenPtr& gen, std::ostream& stream);
+		Runner(const HNSWConfigPtr& cfg, const ElementGenPtr& gen, const std::vector<HNSWAlgoKind>& algoKinds, bool track, std::ostream& stream);
 	};
 }

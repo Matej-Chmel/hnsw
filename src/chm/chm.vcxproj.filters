@@ -30,7 +30,7 @@
     <ClInclude Include="DebugHNSW.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="DebugHnswlib.hpp">
+    <ClInclude Include="debugWrappers.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -47,7 +47,7 @@
     <ClCompile Include="dataOps.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="DebugHnswlib.cpp">
+    <ClCompile Include="debugWrappers.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

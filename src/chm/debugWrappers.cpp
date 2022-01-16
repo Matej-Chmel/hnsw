@@ -1,11 +1,40 @@
-#include "DebugHnswlib.hpp"
+#include "debugWrappers.hpp"
 
 namespace chm {
-	HnswlibState::~HnswlibState() {
+	void directDebugInsert(DebugHNSW* debugObj, float* data, size_t idx) {
+		debugObj->startInsert(data, idx);
+		debugObj->prepareUpperSearch();
+
+		auto range = debugObj->getUpperRange();
+
+		if(range.shouldLoop)
+			for(auto lc = range.start; lc > range.end; lc--)
+				debugObj->searchUpperLayers(lc);
+
+		range = debugObj->getLowerRange();
+
+		if(range.shouldLoop) {
+			debugObj->prepareLowerSearch();
+
+			for(auto lc = range.start;; lc--) {
+				debugObj->searchLowerLayers(lc);
+				debugObj->selectOriginalNeighbors(lc);
+				debugObj->connect(lc);
+				debugObj->prepareNextLayer(lc);
+
+				if(lc == 0)
+					break;
+			}
+		}
+
+		debugObj->setupEnterPoint();
+	}
+
+	HnswlibLocals::~HnswlibLocals() {
 		this->clear();
 	}
 
-	void HnswlibState::clear() {
+	void HnswlibLocals::clear() {
 		this->cur_c = 0;
 		this->curdist = 0.f;
 		this->curlevel = 0;
@@ -18,13 +47,13 @@ namespace chm {
 		this->level = -1;
 		this->maxlevelcopy = 0;
 		this->Mcurmax = 0;
-		this->searchLowerLayers = false;
+		this->shouldUpperSearch = false;
 		this->top_candidates = PriorityQueue{};
 	}
 
-	DebugNodeVecPtr DebugHnswlib::vecFromTopCandidates() {
+	NodeVecPtr DebugHnswlib::vecFromTopCandidates() {
 		PriorityQueue candCopy = this->local.top_candidates;
-		auto res = std::make_shared<DebugNodeVec>();
+		auto res = std::make_shared<NodeVec>();
 		auto& r = *res;
 
 		r.resize(candCopy.size());
@@ -44,15 +73,7 @@ namespace chm {
 		return res;
 	}
 
-	DebugHnswlib::~DebugHnswlib() {
-		delete this->hnsw;
-		delete this->space;
-	}
-
-	DebugHnswlib::DebugHnswlib(const HNSWConfigPtr& cfg) : local{} {
-		this->space = new hnswlib::L2Space(cfg->dim);
-		this->hnsw = new hnswlib::HierarchicalNSW<float>(this->space, cfg->maxElements, cfg->M, cfg->efConstruction, cfg->seed);
-	}
+	DebugHnswlib::DebugHnswlib(hnswlib::HierarchicalNSW<float>* hnsw) : hnsw(hnsw), local{} {}
 
 	void DebugHnswlib::startInsert(float* coords, size_t label) {
 		// Reset local variables.
@@ -63,13 +84,13 @@ namespace chm {
 		{
 			// Checking if the element with the same label already exists
 			// if so, updating it *instead* of creating a new element.
-			std::unique_lock <std::mutex> templock_curr(this->hnsw->cur_element_count_guard_);
+			// std::unique_lock <std::mutex> templock_curr(this->hnsw->cur_element_count_guard_);
 			auto search = this->hnsw->label_lookup_.find(label);
 			if(search != this->hnsw->label_lookup_.end()) {
 				hnswlib::tableint existingInternalId = search->second;
-				templock_curr.unlock();
+				// templock_curr.unlock();
 
-				std::unique_lock <std::mutex> lock_el_update(this->hnsw->link_list_update_locks_[(existingInternalId & (hnswlib::HierarchicalNSW<float>::max_update_element_locks - 1))]);
+				// std::unique_lock <std::mutex> lock_el_update(this->hnsw->link_list_update_locks_[(existingInternalId & (hnswlib::HierarchicalNSW<float>::max_update_element_locks - 1))]);
 
 				if(this->hnsw->isMarkedDeleted(existingInternalId)) {
 					this->hnsw->unmarkDeletedInternal(existingInternalId);
@@ -126,14 +147,21 @@ namespace chm {
 
 	void DebugHnswlib::prepareUpperSearch() {
 		this->local.isFirstElement = (signed)this->local.currObj == -1;
-		this->local.searchLowerLayers = !this->local.isFirstElement && this->local.curlevel < this->local.maxlevelcopy;
+		this->local.shouldUpperSearch = !this->local.isFirstElement && this->local.curlevel < this->local.maxlevelcopy;
 
-		if(this->local.searchLowerLayers)
+		if(this->local.shouldUpperSearch)
 			this->local.curdist = this->hnsw->fstdistfunc_(this->local.data_point, this->hnsw->getDataByInternalId(this->local.currObj), this->hnsw->dist_func_param_);
 	}
 
+	LevelRange DebugHnswlib::getUpperRange() {
+		if(this->local.maxlevelcopy < 0)
+			return {0, 0, false};
+
+		return {size_t(this->local.maxlevelcopy), size_t(this->local.curlevel), true};
+	}
+
 	void DebugHnswlib::searchUpperLayers(size_t level) {
-		if(this->local.searchLowerLayers) {
+		if(this->local.shouldUpperSearch) {
 			bool changed = true;
 			while(changed) {
 				changed = false;
@@ -158,12 +186,19 @@ namespace chm {
 		}
 	}
 
-	DebugNode DebugHnswlib::getNearestNode() {
+	Node DebugHnswlib::getNearestNode() {
 		return {this->local.curdist, this->local.currObj};
 	}
 
 	void DebugHnswlib::prepareLowerSearch() {
 		this->local.epDeleted = this->hnsw->isMarkedDeleted(this->local.enterpoint_copy);
+	}
+
+	LevelRange DebugHnswlib::getLowerRange() {
+		if(this->local.maxlevelcopy < 0)
+			return {0, 0, false};
+
+		return {size_t(std::min(this->local.curlevel, this->local.maxlevelcopy)), 0, true};
 	}
 
 	void DebugHnswlib::searchLowerLayers(size_t level) {
@@ -173,7 +208,7 @@ namespace chm {
 		this->local.top_candidates = this->hnsw->searchBaseLayer(this->local.currObj, this->local.data_point, level);
 	}
 
-	DebugNodeVecPtr DebugHnswlib::getLowerLayerResults() {
+	NodeVecPtr DebugHnswlib::getLowerLayerResults() {
 		return this->vecFromTopCandidates();
 	}
 
@@ -192,11 +227,11 @@ namespace chm {
 		this->hnsw->getNeighborsByHeuristic2(this->local.top_candidates, this->hnsw->M_);
 	}
 
-	DebugNodeVecPtr DebugHnswlib::getOriginalNeighbors(size_t level) {
-		this->vecFromTopCandidates();
+	NodeVecPtr DebugHnswlib::getOriginalNeighbors(size_t level) {
+		return this->vecFromTopCandidates();
 	}
 
-	void DebugHnswlib::connect(size_t lc) {
+	void DebugHnswlib::connect(size_t level) {
 		if(this->local.top_candidates.size() > this->hnsw->M_)
 			throw std::runtime_error("Should be not be more than M_ candidates returned by the heuristic");
 
@@ -211,10 +246,10 @@ namespace chm {
 
 		{
 			hnswlib::linklistsizeint* ll_cur;
-			if(this->local.level == 0)
+			if(level == 0)
 				ll_cur = this->hnsw->get_linklist0(this->local.cur_c);
 			else
-				ll_cur = this->hnsw->get_linklist(this->local.cur_c, this->local.level);
+				ll_cur = this->hnsw->get_linklist(this->local.cur_c, level);
 
 			if(*ll_cur && !this->local.isUpdate) {
 				throw std::runtime_error("The newly inserted element should have blank link list");
@@ -224,7 +259,7 @@ namespace chm {
 			for(size_t idx = 0; idx < selectedNeighbors.size(); idx++) {
 				if(data[idx] && !this->local.isUpdate)
 					throw std::runtime_error("Possible memory corruption");
-				if(this->local.level > this->hnsw->element_levels_[selectedNeighbors[idx]])
+				if(level > this->hnsw->element_levels_[selectedNeighbors[idx]])
 					throw std::runtime_error("Trying to make a link on a non-existent level");
 
 				data[idx] = selectedNeighbors[idx];
@@ -232,13 +267,13 @@ namespace chm {
 		}
 
 		for(size_t idx = 0; idx < selectedNeighbors.size(); idx++) {
-			std::unique_lock <std::mutex> lock(this->hnsw->link_list_locks_[selectedNeighbors[idx]]);
+			// std::unique_lock <std::mutex> lock(this->hnsw->link_list_locks_[selectedNeighbors[idx]]);
 
 			hnswlib::linklistsizeint* ll_other;
-			if(this->local.level == 0)
+			if(level == 0)
 				ll_other = this->hnsw->get_linklist0(selectedNeighbors[idx]);
 			else
-				ll_other = this->hnsw->get_linklist(selectedNeighbors[idx], this->local.level);
+				ll_other = this->hnsw->get_linklist(selectedNeighbors[idx], level);
 
 			size_t sz_link_list_other = this->hnsw->getListCount(ll_other);
 
@@ -246,7 +281,7 @@ namespace chm {
 				throw std::runtime_error("Bad value of sz_link_list_other");
 			if(selectedNeighbors[idx] == this->local.cur_c)
 				throw std::runtime_error("Trying to connect an element to itself");
-			if(this->local.level > this->hnsw->element_levels_[selectedNeighbors[idx]])
+			if(level > this->hnsw->element_levels_[selectedNeighbors[idx]])
 				throw std::runtime_error("Trying to make a link on a non-existent level");
 
 			hnswlib::tableint* data = (hnswlib::tableint*)(ll_other + 1);
@@ -347,4 +382,19 @@ namespace chm {
 	size_t DebugHnswlib::getEnterPoint() {
 		return this->hnsw->enterpoint_node_;
 	}
+
+	void hnswlibDebugWrapper::init() {
+		hnswlibWrapper::init();
+		this->debugObj = new DebugHnswlib(this->hnsw);
+	}
+
+	void hnswlibDebugWrapper::insert(float* data, size_t idx) {
+		directDebugInsert(this->debugObj, data, idx);
+	}
+
+	hnswlibDebugWrapper::~hnswlibDebugWrapper() {
+		delete this->debugObj;
+	}
+
+	hnswlibDebugWrapper::hnswlibDebugWrapper(const HNSWConfigPtr& cfg) : hnswlibWrapper(cfg, "hnswlib-HNSW-Debug"), debugObj(nullptr) {}
 }

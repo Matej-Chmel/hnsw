@@ -1,9 +1,7 @@
 #include "refImplWrappers.hpp"
 
 namespace chm {
-	const std::string BacaWrapper::NAME = "Baca-HNSW";
-
-	BacaWrapper::BacaWrapper(const HNSWConfigPtr& cfg) : HNSWAlgo(cfg, BacaWrapper::NAME), ef(0), hnsw(nullptr) {}
+	BacaWrapper::BacaWrapper(const HNSWConfigPtr& cfg) : HNSWAlgo(cfg, "Baca-HNSW"), ef(0), hnsw(nullptr) {}
 
 	void BacaWrapper::init() {
 		this->hnsw = new HNSW(int(this->cfg->M), int(this->cfg->M), int(this->cfg->efConstruction), this->cfg->seed);
@@ -77,11 +75,9 @@ namespace chm {
 		this->ef = ef;
 	}
 
-	const std::string hnswlibWrapper::NAME = "hnswlib-HNSW";
-
 	void hnswlibWrapper::init() {
 		this->space = new hnswlib::L2Space(this->cfg->dim);
-		this->hnsw = new hnswlib::HierarchicalNSW(this->space, this->cfg->maxElements, this->cfg->M, this->cfg->efConstruction, this->cfg->seed);
+		this->hnsw = new hnswlib::HierarchicalNSW<float>(this->space, this->cfg->maxElements, this->cfg->M, this->cfg->efConstruction, this->cfg->seed);
 	}
 
 	void hnswlibWrapper::insert(float* data, size_t idx) {
@@ -117,7 +113,9 @@ namespace chm {
 		return res;
 	}
 
-	hnswlibWrapper::hnswlibWrapper(const HNSWConfigPtr& cfg) : HNSWAlgo(cfg, hnswlibWrapper::NAME), hnsw(nullptr), space(nullptr) {}
+	hnswlibWrapper::hnswlibWrapper(const HNSWConfigPtr& cfg) : hnswlibWrapper(cfg, "hnswlib-HNSW") {}
+
+	hnswlibWrapper::hnswlibWrapper(const HNSWConfigPtr& cfg, const std::string& name) : HNSWAlgo(cfg, name), hnsw(nullptr), space(nullptr) {}
 
 	KNNResultPtr hnswlibWrapper::search(const FloatVecPtr& coords, size_t K) {
 		const auto& c = *coords;

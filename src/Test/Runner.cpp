@@ -18,16 +18,16 @@ namespace chm {
 		return EXIT_SUCCESS;
 	}
 
-	Runner::Runner(const HNSWConfigPtr& cfg, const ElementGenPtr& gen, std::ostream& stream)
-		: state(cfg, gen, fs::path(SOLUTION_DIR) / "logs" / "soleRunner"), stream(&stream) {
+	Runner::Runner(const HNSWConfigPtr& cfg, const ElementGenPtr& gen, const std::vector<HNSWAlgoKind>& algoKinds, bool track, std::ostream& stream)
+		: state(cfg, gen, algoKinds, fs::path(SOLUTION_DIR) / "logs" / "soleRunner"), stream(&stream) {
 
 		this->actions = {
 			std::make_shared<ActionGenElements>(),
-			std::make_shared<ActionBuildGraphs>(),
-			std::make_shared<TestNodeCount>(hnswlibWrapper::NAME, BacaWrapper::NAME),
-			std::make_shared<TestLevels>(hnswlibWrapper::NAME, BacaWrapper::NAME),
-			std::make_shared<TestNeighborsLength>(hnswlibWrapper::NAME, BacaWrapper::NAME),
-			std::make_shared<TestNeighborsIndices>(hnswlibWrapper::NAME, BacaWrapper::NAME)
+			std::make_shared<ActionBuildGraphs>(track)
 		};
+		const auto len = algoKinds.size();
+
+		for(size_t i = 1; i < len; i++)
+			this->actions.push_back(std::make_shared<TestConnections>(algoKinds[0], algoKinds[i]));
 	}
 }

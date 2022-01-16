@@ -1,6 +1,6 @@
 #pragma once
 #include "DebugHNSW.hpp"
-#include "hnswlib/hnswalg.h"
+#include "refImplWrappers.hpp"
 
 namespace chm {
 	typedef std::priority_queue<
@@ -9,7 +9,7 @@ namespace chm {
 		hnswlib::HierarchicalNSW<float>::CompareByFirst
 	> PriorityQueue;
 
-	struct HnswlibState {
+	struct HnswlibLocals {
 		hnswlib::tableint cur_c;
 		float curdist;
 		int curlevel;
@@ -22,38 +22,50 @@ namespace chm {
 		int level;
 		int maxlevelcopy;
 		size_t Mcurmax;
-		bool searchLowerLayers;
+		bool shouldUpperSearch;
 		PriorityQueue top_candidates;
 
-		~HnswlibState();
+		~HnswlibLocals();
 		void clear();
 	};
 
 	class DebugHnswlib : public DebugHNSW {
 		hnswlib::HierarchicalNSW<float>* hnsw;
-		HnswlibState local;
-		hnswlib::L2Space* space;
+		HnswlibLocals local;
 
-		DebugNodeVecPtr vecFromTopCandidates();
+		NodeVecPtr vecFromTopCandidates();
 
 	public:
-		~DebugHnswlib();
-		DebugHnswlib(const HNSWConfigPtr& cfg);
+		DebugHnswlib(hnswlib::HierarchicalNSW<float>* hnsw);
 
 		void startInsert(float* coords, size_t idx) override;
 		size_t getLatestLevel() override;
 		void prepareUpperSearch() override;
+		LevelRange getUpperRange() override;
 		void searchUpperLayers(size_t lc) override;
-		DebugNode getNearestNode() override;
+		Node getNearestNode() override;
 		void prepareLowerSearch() override;
+		LevelRange getLowerRange() override;
 		void searchLowerLayers(size_t lc) override;
-		DebugNodeVecPtr getLowerLayerResults() override;
+		NodeVecPtr getLowerLayerResults() override;
 		void selectOriginalNeighbors(size_t lc) override;
-		DebugNodeVecPtr getOriginalNeighbors(size_t lc) override;
+		NodeVecPtr getOriginalNeighbors(size_t lc) override;
 		void connect(size_t lc) override;
 		IdxVecPtr getNeighborsForNode(size_t nodeIdx, size_t lc) override;
 		void prepareNextLayer(size_t lc) override;
 		void setupEnterPoint() override;
 		size_t getEnterPoint() override;
+	};
+
+	class hnswlibDebugWrapper : public hnswlibWrapper {
+		DebugHnswlib* debugObj;
+
+	protected:
+		void init() override;
+		void insert(float* data, size_t idx) override;
+
+	public:
+		~hnswlibDebugWrapper();
+		hnswlibDebugWrapper(const HNSWConfigPtr& cfg);
 	};
 }
