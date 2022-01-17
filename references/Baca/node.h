@@ -36,12 +36,27 @@ namespace baca {
 
 	struct neighborcmp_nearest {
 		bool operator()(const Neighbors& a, const Neighbors& b) const {
+			#ifdef DECIDE_BY_INDEX
+
+			if(a.distance == b.distance)
+				return a.node_order > b.node_order;
+
+			#endif
+
 			return a.distance < b.distance;
 		}
 	};
 
 	struct neighborcmp_farest_heap {
 		bool operator()(const Neighbors& a, const Neighbors& b) const {
+			#ifdef DECIDE_BY_INDEX
+
+			if(a.distance == b.distance)
+				return a.node_order > b.node_order;
+
+			#endif
+
+
 			return a.distance < b.distance;
 		}
 	};

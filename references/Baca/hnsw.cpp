@@ -270,6 +270,21 @@ namespace baca {
 			searchLayer(q, efConstruction_);
 			selectNeighbors(W_, R, M_, false);
 
+			#ifdef SEARCH_FROM_NEAREST_NEIGHBOR
+
+			{
+				const auto len = R.size();
+				IndexedNodeQueue queue;
+
+				for(size_t i = 0; i < len; i++)
+					queue.push({-R[i].distance, R[i].node_order, i});
+
+				W_.clear();
+				W_.push_back(R[queue.top().resultIdx]);
+			}
+
+			#endif
+
 			for(int i = 0; i < R.size(); i++) {
 				Neighbors& e = R[i];
 				Node* enode = e.node;

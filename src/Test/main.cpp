@@ -1,20 +1,21 @@
 #include "Runner.hpp"
 
 constexpr size_t EF_CONSTRUCTION = 200;
-constexpr auto DEBUG_BUILD = true;
+constexpr auto DEBUG_BUILD = false;
 constexpr size_t DIM = 128;
 constexpr auto ELEMENT_MAX = 1.f;
 constexpr auto ELEMENT_MIN = 0.f;
 constexpr unsigned int ELEMENT_SEED = 100;
 constexpr unsigned int LEVEL_SEED = 100;
 constexpr size_t MAX_NEIGHBORS = 16;
-constexpr size_t NODE_COUNT = 20000;
+constexpr size_t NODE_COUNT = 30000;
 constexpr auto TRACK = false;
 
 int main() {
 	return chm::Runner(
 		{
-			chm::HNSWAlgoKind::HNSWLIB_DEBUG, chm::HNSWAlgoKind::BACA_DEBUG
+			// chm::HNSWAlgoKind::HNSWLIB_DEBUG, chm::HNSWAlgoKind::BACA_DEBUG
+			chm::HNSWAlgoKind::HNSWLIB, chm::HNSWAlgoKind::BACA
 		},
 		std::make_shared<chm::HNSWConfig>(DIM, EF_CONSTRUCTION, MAX_NEIGHBORS, NODE_COUNT, LEVEL_SEED),
 		DEBUG_BUILD,

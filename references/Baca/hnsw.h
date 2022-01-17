@@ -166,6 +166,30 @@ TODO - Should be replaced by a bloom filter or cuckoo filter.
 	};
 	#endif
 
+	#ifdef SEARCH_FROM_NEAREST_NEIGHBOR
+
+	struct IndexedNode {
+		float distance;
+		size_t order;
+		size_t resultIdx;
+
+		struct Comparator {
+			constexpr bool operator()(const IndexedNode& a, const IndexedNode& b) const noexcept {
+				#ifdef DECIDE_BY_INDEX
+
+				if(a.distance == b.distance)
+					return a.order > b.order;
+
+				#endif
+
+				return a.distance < b.distance;
+			}
+		};
+	};
+
+	typedef std::priority_queue<IndexedNode, std::vector<IndexedNode>, IndexedNode::Comparator> IndexedNodeQueue;
+
+	#endif
 
 	struct CompareByFirst {
 		constexpr bool operator()(std::pair<uint32_t, Node*> i1, std::pair<uint32_t, Node*> i2) const noexcept {
@@ -194,6 +218,13 @@ TODO - Should be replaced by a bloom filter or cuckoo filter.
 			std::tuple<Node*, int32_t> i1, std::tuple<Node*, int32_t> i2
 			#endif
 		) const noexcept {
+			#if defined(DECIDE_BY_INDEX) && defined(STORE_NODE_ORDER)
+
+			if(std::get<1>(i1) == std::get<1>(i2))
+				return std::get<0>(i1)->order < std::get<0>(i2)->order;
+
+			#endif
+
 			return std::get<1>(i1) > std::get<1>(i2);
 		}
 	};

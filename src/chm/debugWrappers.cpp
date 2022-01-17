@@ -587,16 +587,20 @@ namespace chm {
 	void DebugBaca::selectOriginalNeighbors(size_t lc) {
 		this->hnsw->selectNeighbors(this->hnsw->W_, this->local.R, this->hnsw->M_, false);
 
-		// CHANGE: Nearest selected neighbor into W_.
+		#ifdef SEARCH_FROM_NEAREST_NEIGHBOR
 
-		const auto len = this->local.R.size();
-		PriorityQueue queue;
+		{
+			const auto len = this->local.R.size();
+			baca::IndexedNodeQueue queue;
 
-		for(size_t i = 0; i < len; i++)
-			queue.push({-this->local.R[i].distance, i});
+			for(size_t i = 0; i < len; i++)
+				queue.push({-this->local.R[i].distance, this->local.R[i].node_order, i});
 
-		this->hnsw->W_.clear();
-		this->hnsw->W_.push_back(this->local.R[queue.top().second]);
+			this->hnsw->W_.clear();
+			this->hnsw->W_.push_back(this->local.R[queue.top().resultIdx]);
+		}
+
+		#endif
 	}
 
 	NodeVecPtr DebugBaca::getOriginalNeighbors() {

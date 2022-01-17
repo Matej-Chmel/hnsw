@@ -9,6 +9,8 @@
 #include <unordered_set>
 #include <list>
 
+#define HNSWLIB_DECIDE_BY_INDEX
+
 namespace hnswlib {
     typedef unsigned int tableint;
     typedef unsigned int linklistsizeint;
@@ -70,6 +72,13 @@ namespace hnswlib {
         struct CompareByFirst {
             constexpr bool operator()(std::pair<dist_t, tableint> const &a,
                                       std::pair<dist_t, tableint> const &b) const noexcept {
+				#ifdef HNSWLIB_DECIDE_BY_INDEX
+
+				if(a.first == b.first)
+					return a.second > b.second;
+
+				#endif
+
                 return a.first < b.first;
             }
         };
