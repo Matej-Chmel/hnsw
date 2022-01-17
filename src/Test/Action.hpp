@@ -1,6 +1,4 @@
 #pragma once
-#include <string>
-#include <unordered_map>
 #include "chm/KNNAlgo.hpp"
 
 namespace chm {
