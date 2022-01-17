@@ -743,9 +743,9 @@ namespace baca {
 					}
 					#endif
 				}
-				}
 			}
 		}
+	}
 
 	#ifdef COMPUTE_APPROXIMATE_VECTOR
 
