@@ -225,9 +225,7 @@ namespace chm {
 		for(auto& state : s->algoStates)
 			debugAlgos.push_back(state->algo);
 
-		std::ofstream errStream(s->outDir / "debug-build.log");
-		DebugHNSWRunner runner(debugAlgos, errStream);
-
+		DebugHNSWRunner runner(debugAlgos, s->outDir);
 		runner.build(s->coords, s->cfg->dim);
 
 		for(auto& state : s->algoStates)

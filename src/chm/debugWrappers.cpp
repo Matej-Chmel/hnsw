@@ -82,6 +82,7 @@ namespace chm {
 				break;
 		}
 
+		std::sort(r.begin(), r.end(), NodeComparator());
 		return res;
 	}
 

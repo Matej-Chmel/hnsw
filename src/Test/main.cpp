@@ -8,14 +8,13 @@ constexpr auto ELEMENT_MIN = 0.f;
 constexpr unsigned int ELEMENT_SEED = 100;
 constexpr unsigned int LEVEL_SEED = 100;
 constexpr size_t MAX_NEIGHBORS = 16;
-constexpr size_t NODE_COUNT = 50;
+constexpr size_t NODE_COUNT = 1300;
 constexpr auto TRACK = false;
 
 int main() {
 	return chm::Runner(
 		{
-			chm::HNSWAlgoKind::HNSWLIB_DEBUG, chm::HNSWAlgoKind::HNSWLIB_DEBUG
-			// chm::HNSWAlgoKind::BACA_DEBUG, chm::HNSWAlgoKind::BACA_DEBUG
+			chm::HNSWAlgoKind::HNSWLIB_DEBUG, chm::HNSWAlgoKind::BACA_DEBUG
 		},
 		std::make_shared<chm::HNSWConfig>(DIM, EF_CONSTRUCTION, MAX_NEIGHBORS, NODE_COUNT, LEVEL_SEED),
 		DEBUG_BUILD,

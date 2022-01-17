@@ -7,16 +7,17 @@ namespace chm {
 	class DebugHNSWRunner {
 		HNSWAlgoVec algos;
 		size_t currentIdx;
-		std::ostream* stream;
+		fs::path outDir;
 
-		std::string algoName(size_t i = 0);
+		fs::path actualLogPath() const;
+		std::string algoName(size_t i = 0) const;
 		DebugHNSW* debugObj(size_t i = 0);
+		fs::path expectedLogPath() const;
 		void insert(float* coords, size_t idx);
-		size_t len();
-		void throwAppError(const char* testName, size_t algoIdx);
-		void writeHeader(const char* testName, size_t algoIdx, bool useLayer = false, size_t lc = 0);
-		void writeIdxVec(const char* name, const IdxVecPtr& vec);
-		void writeNodeVec(const char* name, const NodeVecPtr& vec);
+		size_t len() const;
+		fs::path reportLogPath() const;
+		void throwAppError(const char* testName, size_t algoIdx) const;
+		void writeReport(const char* testName, size_t algoIdx, std::ostream& stream, bool useLayer = false, size_t lc = 0);
 
 		void startInsert(float* coords, size_t idx);
 		void testLatestLevel();
@@ -39,6 +40,6 @@ namespace chm {
 
 	public:
 		void build(const FloatVecPtr& coords, size_t dim);
-		DebugHNSWRunner(const HNSWAlgoVec& algos, std::ostream& stream);
+		DebugHNSWRunner(const HNSWAlgoVec& algos, const fs::path& outDir);
 	};
 }

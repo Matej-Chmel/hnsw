@@ -1,3 +1,4 @@
+#include <fstream>
 #include "DebugHNSWRunner.hpp"
 
 namespace chm {
@@ -8,7 +9,33 @@ namespace chm {
 	auto TEST_CONNECTIONS = "Connections";
 	auto TEST_ENTRY = "Entry point";
 
-	std::string DebugHNSWRunner::algoName(size_t i) {
+	void writeIdxVec(const IdxVecPtr& vec, std::ostream& stream) {
+		auto& v = *vec;
+		const auto len = v.size();
+
+		stream << "[Length " << len << "]\n\n";
+
+		for(size_t i = 0; i < len; i++)
+			stream << "[" << i << "]: " << v[i] << '\n';
+	}
+
+	void writeNodeVec(const NodeVecPtr& vec, std::ostream& stream) {
+		auto& v = *vec;
+		const auto len = v.size();
+
+		stream << "[Length " << len << "]\n\n";
+
+		for(size_t i = 0; i < len; i++) {
+			auto& node = v[i];
+			stream << "[" << i << "]: " << node.idx << ", " << node.distance << '\n';
+		}
+	}
+
+	fs::path DebugHNSWRunner::actualLogPath() const {
+		return this->outDir / "actual.log";
+	}
+
+	std::string DebugHNSWRunner::algoName(size_t i) const {
 		return this->algos[i]->getName();
 	}
 
@@ -16,7 +43,13 @@ namespace chm {
 		return this->algos[i]->getDebugObject();
 	}
 
+	fs::path DebugHNSWRunner::expectedLogPath() const {
+		return this->outDir / "expected.log";
+	}
+
 	void DebugHNSWRunner::insert(float* coords, size_t idx) {
+		this->currentIdx = idx;
+
 		this->startInsert(coords, idx);
 		this->testLatestLevel();
 		this->prepareUpperSearch();
@@ -54,48 +87,30 @@ namespace chm {
 		this->testEnterPoint();
 	}
 
-	size_t DebugHNSWRunner::len() {
+	size_t DebugHNSWRunner::len() const {
 		return this->algos.size();
 	}
 
-	void DebugHNSWRunner::throwAppError(const char* testName, size_t algoIdx) {
+	fs::path DebugHNSWRunner::reportLogPath() const {
+		return this->outDir / "report.log";
+	}
+
+	void DebugHNSWRunner::throwAppError(const char* testName, size_t algoIdx) const {
 		throw AppError(
 			"Algorithm "_f << this->algoName(algoIdx) << " failed test \"" << testName <<
 			"\" when inserting node " << this->currentIdx << '.'
 		);
 	}
 
-	void DebugHNSWRunner::writeHeader(const char* testName, size_t algoIdx, bool useLayer, size_t lc) {
-		*this->stream <<
+	void DebugHNSWRunner::writeReport(const char* testName, size_t algoIdx, std::ostream& stream, bool useLayer, size_t lc) {
+		stream <<
 			"Error report\nReference algorithm: " << this->algoName() << "\nWrong algorithm: " << this->algoName(algoIdx) <<
-			"\nFailed test: " << testName;
+			"\nFailed test: " << testName << "\nNode: " << this->currentIdx;
 
 		if(useLayer)
-			*this->stream << "\nLayer: " << lc;
+			stream << "\nLayer: " << lc;
 
-		*this->stream << "\n\n";
-	}
-
-	void DebugHNSWRunner::writeIdxVec(const char* name, const IdxVecPtr& vec) {
-		auto& v = *vec;
-		const auto len = v.size();
-
-		*this->stream << name << " :\n[Length " << len << "]\n\n";
-
-		for(size_t i = 0; i < len; i++)
-			*this->stream << "[" << i << "]: " << v[i] << '\n';
-	}
-
-	void DebugHNSWRunner::writeNodeVec(const char* name, const NodeVecPtr& vec) {
-		auto& v = *vec;
-		const auto len = v.size();
-
-		*this->stream << name << " :\n[Length " << len << "]\n\n";
-
-		for(size_t i = 0; i < len; i++) {
-			auto& node = v[i];
-			*this->stream << "[" << i << "]: " << node.idx << ", " << node.distance << '\n';
-		}
+		stream << '\n';
 	}
 
 	void DebugHNSWRunner::startInsert(float* coords, size_t idx) {
@@ -111,8 +126,18 @@ namespace chm {
 			auto actualLevel = this->debugObj(i)->getLatestLevel();
 
 			if(actualLevel != expectedLevel) {
-				this->writeHeader(TEST_LEVEL, i);
-				*this->stream << "Expected level: " << expectedLevel << "\nActual level: " << actualLevel << '\n';
+				{
+					std::ofstream stream(this->reportLogPath());
+					this->writeReport(TEST_LEVEL, i, stream);
+				}
+				{
+					std::ofstream stream(this->expectedLogPath());
+					stream << "Level: " << expectedLevel << '\n';
+				}
+				{
+					std::ofstream stream(this->actualLogPath());
+					stream << "Level: " << actualLevel << '\n';
+				}
 				this->throwAppError(TEST_LEVEL, i);
 			}
 		}
@@ -140,10 +165,18 @@ namespace chm {
 			auto actualNode = this->debugObj(i)->getNearestNode();
 
 			if(actualNode.distance != expectedNode.distance || actualNode.idx != expectedNode.idx) {
-				this->writeHeader(TEST_NEAREST_NODE, i, true, lc);
-				*this->stream <<
-					"Expected distance: " << expectedNode.distance << "\nActual distance: " << actualNode.distance <<
-					"\nExpected index: " << expectedNode.idx << "\nActual index: " << actualNode.idx << '\n';
+				{
+					std::ofstream stream(this->reportLogPath());
+					this->writeReport(TEST_NEAREST_NODE, i, stream, true, lc);
+				}
+				{
+					std::ofstream stream(this->expectedLogPath());
+					stream << "Distance: " << expectedNode.distance << "\nIndex: " << expectedNode.idx << '\n';
+				}
+				{
+					std::ofstream stream(this->actualLogPath());
+					stream << "Distance: " << actualNode.distance << "\nIndex: " << actualNode.idx << '\n';
+				}
 				this->throwAppError(TEST_NEAREST_NODE, i);
 			}
 		}
@@ -170,9 +203,18 @@ namespace chm {
 		auto algosLen = this->len();
 
 		auto fail = [&](const NodeVecPtr& actualRes, size_t algoIdx) {
-			this->writeHeader(TEST_LOWER_SEARCH, algoIdx, true, lc);
-			this->writeNodeVec("Expected nodes", expectedRes);
-			this->writeNodeVec("\nActual nodes", actualRes);
+			{
+				std::ofstream stream(this->reportLogPath());
+				this->writeReport(TEST_LOWER_SEARCH, algoIdx, stream, true, lc);
+			}
+			{
+				std::ofstream stream(this->expectedLogPath());
+				writeNodeVec(expectedRes, stream);
+			}
+			{
+				std::ofstream stream(this->actualLogPath());
+				writeNodeVec(actualRes, stream);
+			}
 			this->throwAppError(TEST_LOWER_SEARCH, algoIdx);
 		};
 
@@ -206,9 +248,18 @@ namespace chm {
 		auto algosLen = this->len();
 
 		auto fail = [&](const NodeVecPtr& actualRes, size_t algoIdx) {
-			this->writeHeader(TEST_SELECT_NEIGHBORS, algoIdx, true, lc);
-			this->writeNodeVec("Expected nodes", expectedRes);
-			this->writeNodeVec("\nActual nodes", actualRes);
+			{
+				std::ofstream stream(this->reportLogPath());
+				this->writeReport(TEST_SELECT_NEIGHBORS, algoIdx, stream, true, lc);
+			}
+			{
+				std::ofstream stream(this->expectedLogPath());
+				writeNodeVec(expectedRes, stream);
+			}
+			{
+				std::ofstream stream(this->actualLogPath());
+				writeNodeVec(actualRes, stream);
+			}
 			this->throwAppError(TEST_SELECT_NEIGHBORS, algoIdx);
 		};
 
@@ -244,9 +295,18 @@ namespace chm {
 		const auto expectedLen = expectedVec.size();
 
 		auto fail = [&](const IdxVecPtr& actualNeighbors, size_t algoIdx) {
-			this->writeHeader(TEST_CONNECTIONS, algoIdx, true, lc);
-			this->writeIdxVec("Expected neighbors", expectedNeighbors);
-			this->writeIdxVec("\nActual neighbors", actualNeighbors);
+			{
+				std::ofstream stream(this->reportLogPath());
+				this->writeReport(TEST_CONNECTIONS, algoIdx, stream, true, lc);
+			}
+			{
+				std::ofstream stream(this->expectedLogPath());
+				writeIdxVec(expectedNeighbors, stream);
+			}
+			{
+				std::ofstream stream(this->actualLogPath());
+				writeIdxVec(actualNeighbors, stream);
+			}
 			this->throwAppError(TEST_CONNECTIONS, algoIdx);
 		};
 
@@ -288,8 +348,18 @@ namespace chm {
 			auto actualEntry = this->debugObj(i)->getEnterPoint();
 
 			if(actualEntry != expectedEntry) {
-				this->writeHeader(TEST_ENTRY, i);
-				*this->stream << "Expected entry index: " << expectedEntry << "\nActual entry index: " << actualEntry << '\n';
+				{
+					std::ofstream stream(this->reportLogPath());
+					this->writeReport(TEST_ENTRY, i, stream);
+				}
+				{
+					std::ofstream stream(this->expectedLogPath());
+					stream << "Entry index: " << expectedEntry << '\n';
+				}
+				{
+					std::ofstream stream(this->actualLogPath());
+					stream << "Entry index: " << actualEntry << '\n';
+				}
 				this->throwAppError(TEST_ENTRY, i);
 			}
 		}
@@ -306,5 +376,5 @@ namespace chm {
 			this->insert(&c[i * dim], i);
 	}
 
-	DebugHNSWRunner::DebugHNSWRunner(const HNSWAlgoVec& algos, std::ostream& stream) : algos(algos), currentIdx(0), stream(&stream) {}
+	DebugHNSWRunner::DebugHNSWRunner(const HNSWAlgoVec& algos, const fs::path& outDir) : algos(algos), currentIdx(0), outDir(outDir) {}
 }
