@@ -1,5 +1,6 @@
 #include <fstream>
 #include "Action.hpp"
+#include "chm/DebugHNSWRunner.hpp"
 #include "chm/debugWrappers.hpp"
 
 namespace chm {
@@ -41,8 +42,7 @@ namespace chm {
 
 	void HNSWAlgoState::build(const FloatVecPtr& coords) {
 		this->algo->build(coords);
-		this->conn = this->algo->getConnections();
-		this->writeFinalConn();
+		this->saveConnections();
 	}
 
 	void HNSWAlgoState::buildAndTrack(const FloatVecPtr& coords) {
@@ -62,14 +62,19 @@ namespace chm {
 	}
 
 	HNSWAlgoState::HNSWAlgoState(HNSWAlgoPtr algo, const fs::path& outDir)
-		: algo(algo), conn(nullptr), finalConnPath(getPath(algo, "final", outDir)), trackConnPath(getPath(algo, "track", outDir)) {}
+		: conn(nullptr), finalConnPath(getPath(algo, "final", outDir)), trackConnPath(getPath(algo, "track", outDir)), algo(algo) {}
+
+	void HNSWAlgoState::saveConnections() {
+		this->conn = this->algo->getConnections();
+		this->writeFinalConn();
+	}
 
 	CommonState::CommonState(
 		const HNSWConfigPtr& cfg, const ElementGenPtr& gen, const std::vector<HNSWAlgoKind>& algoKinds, const fs::path& outDir
 	) : cfg(cfg), coords(nullptr), gen(gen), outDir(outDir) {
 
 		for(auto& k : algoKinds)
-			this->algoStates[k] = getHNSWAlgoState(k, this->cfg, this->outDir);
+			this->algoStates.push_back(getHNSWAlgoState(k, this->cfg, this->outDir));
 		ensureDir(this->outDir);
 	}
 
@@ -89,11 +94,11 @@ namespace chm {
 	ActionBuildGraphs::ActionBuildGraphs(bool track) : Action("Build graphs"), track(track) {}
 
 	ActionResult ActionBuildGraphs::run(CommonState* s) {
-		for(auto& p : s->algoStates)
+		for(auto& state : s->algoStates)
 			if(this->track)
-				p.second->buildAndTrack(s->coords);
+				state->buildAndTrack(s->coords);
 			else
-				p.second->build(s->coords);
+				state->build(s->coords);
 
 		return this->getActionResult();
 	}
@@ -105,25 +110,17 @@ namespace chm {
 	Test::Test(const std::string& name) : Action(name) {}
 
 	const HNSWAlgoStatePtr ComparisonTest::getA(const CommonState* const s) const {
-		return this->getState(s, this->kindA);
+		return s->algoStates[this->idxA];
 	}
 
 	const HNSWAlgoStatePtr ComparisonTest::getB(const CommonState* const s) const {
-		return this->getState(s, this->kindB);
+		return s->algoStates[this->idxB];
 	}
 
-	const HNSWAlgoStatePtr ComparisonTest::getState(const CommonState* const s, const HNSWAlgoKind& kind) const {
-		return s->algoStates.find(kind)->second;
-	}
-
-	ComparisonTest::ComparisonTest(const std::string& testName, HNSWAlgoKind kindA, HNSWAlgoKind kindB)
-		: Test(testName), kindA(kindA), kindB(kindB) {}
+	ComparisonTest::ComparisonTest(const std::string& testName, size_t idxA, size_t idxB) : Test(testName), idxA(idxA), idxB(idxB) {}
 
 	ComparedConnections ComparisonTest::getComparedConnections(CommonState* s) {
-		return {
-			s->algoStates.find(this->kindA)->second->getConnections(),
-			s->algoStates.find(this->kindB)->second->getConnections()
-		};
+		return {this->getA(s)->getConnections(), this->getB(s)->getConnections()};
 	}
 
 	std::string ComparisonTest::getNames(CommonState* s) {
@@ -144,7 +141,7 @@ namespace chm {
 		return this->getResult(true);
 	}
 
-	TestLevels::TestLevels(HNSWAlgoKind kindA, HNSWAlgoKind kindB) : ComparisonTest("Levels", kindA, kindB) {}
+	TestLevels::TestLevels(size_t idxA, size_t idxB) : ComparisonTest("Levels", idxA, idxB) {}
 
 	ActionResult TestNeighborsIndices::run(CommonState* s) {
 		const auto conn = this->getComparedConnections(s);
@@ -169,7 +166,7 @@ namespace chm {
 		return this->getResult(true);
 	}
 
-	TestNeighborsIndices::TestNeighborsIndices(HNSWAlgoKind kindA, HNSWAlgoKind kindB) : ComparisonTest("Neighbors indices", kindA, kindB) {}
+	TestNeighborsIndices::TestNeighborsIndices(size_t idxA, size_t idxB) : ComparisonTest("Neighbors indices", idxA, idxB) {}
 
 	ActionResult TestNeighborsLength::run(CommonState* s) {
 		const auto conn = this->getComparedConnections(s);
@@ -188,22 +185,22 @@ namespace chm {
 		return this->getResult(true);
 	}
 
-	TestNeighborsLength::TestNeighborsLength(HNSWAlgoKind kindA, HNSWAlgoKind kindB) : ComparisonTest("Neighbors length", kindA, kindB) {}
+	TestNeighborsLength::TestNeighborsLength(size_t idxA, size_t idxB) : ComparisonTest("Neighbors length", idxA, idxB) {}
 
 	ActionResult TestNodeCount::run(CommonState* s) {
 		const auto conn = this->getComparedConnections(s);
 		return this->getResult(conn.A->size() == s->gen->count && conn.B->size() == s->gen->count);
 	}
 
-	TestNodeCount::TestNodeCount(HNSWAlgoKind kindA, HNSWAlgoKind kindB) : ComparisonTest("Node count", kindA, kindB) {}
+	TestNodeCount::TestNodeCount(size_t idxA, size_t idxB) : ComparisonTest("Node count", idxA, idxB) {}
 
 	ActionResult TestConnections::run(CommonState* s) {
 		ActionResult res{("\nComparing connections between:\n"_f << this->getNames(s)).str(), true};
 		std::vector<ActionPtr> tests{
-			std::make_shared<TestNodeCount>(this->kindA, this->kindB),
-			std::make_shared<TestLevels>(this->kindA, this->kindB),
-			std::make_shared<TestNeighborsLength>(this->kindA, this->kindB),
-			std::make_shared<TestNeighborsIndices>(this->kindA, this->kindB)
+			std::make_shared<TestNodeCount>(this->idxA, this->idxB),
+			std::make_shared<TestLevels>(this->idxA, this->idxB),
+			std::make_shared<TestNeighborsLength>(this->idxA, this->idxB),
+			std::make_shared<TestNeighborsIndices>(this->idxA, this->idxB)
 		};
 
 		for(auto& t : tests) {
@@ -218,5 +215,24 @@ namespace chm {
 		return res;
 	}
 
-	TestConnections::TestConnections(HNSWAlgoKind kindA, HNSWAlgoKind kindB) : ComparisonTest("Connections", kindA, kindB) {}
+	TestConnections::TestConnections(size_t idxA, size_t idxB) : ComparisonTest("Connections", idxA, idxB) {}
+
+	ActionDebugBuild::ActionDebugBuild() : Action("Build graphs with debug interface") {}
+
+	ActionResult ActionDebugBuild::run(CommonState* s) {
+		HNSWAlgoVec debugAlgos;
+
+		for(auto& state : s->algoStates)
+			debugAlgos.push_back(state->algo);
+
+		std::ofstream errStream(s->outDir / "debug-build.log");
+		DebugHNSWRunner runner(debugAlgos, errStream);
+
+		runner.build(s->coords, s->cfg->dim);
+
+		for(auto& state : s->algoStates)
+			state->saveConnections();
+
+		return this->getActionResult();
+	}
 }

@@ -5,7 +5,6 @@
 
 namespace chm {
 	class HNSWAlgoState : public Unique {
-		HNSWAlgoPtr algo;
 		IdxVec3DPtr conn;
 		fs::path finalConnPath;
 		fs::path trackConnPath;
@@ -13,14 +12,18 @@ namespace chm {
 		void writeFinalConn();
 
 	public:
+		HNSWAlgoPtr algo;
+
 		void build(const FloatVecPtr& coords);
 		void buildAndTrack(const FloatVecPtr& coords);
 		const IdxVec3DPtr getConnections() const;
 		std::string getName() const;
 		HNSWAlgoState(HNSWAlgoPtr algo, const fs::path& outDir);
+		void saveConnections();
 	};
 
 	typedef std::shared_ptr<HNSWAlgoState> HNSWAlgoStatePtr;
+	typedef std::vector<HNSWAlgoStatePtr> HNSWAlgoStateVec;
 
 	enum class HNSWAlgoKind {
 		BACA,
@@ -30,7 +33,7 @@ namespace chm {
 	};
 
 	struct CommonState : public Unique {
-		std::unordered_map<HNSWAlgoKind, HNSWAlgoStatePtr> algoStates;
+		HNSWAlgoStateVec algoStates;
 		const HNSWConfigPtr cfg;
 		FloatVecPtr coords;
 		const ElementGenPtr gen;
@@ -89,12 +92,11 @@ namespace chm {
 	class ComparisonTest : public Test {
 		const HNSWAlgoStatePtr getA(const CommonState* const s) const;
 		const HNSWAlgoStatePtr getB(const CommonState* const s) const;
-		const HNSWAlgoStatePtr getState(const CommonState* const s, const HNSWAlgoKind& kind) const;
 
 	protected:
-		HNSWAlgoKind kindA, kindB;
+		size_t idxA, idxB;
 
-		ComparisonTest(const std::string& testName, HNSWAlgoKind kindA, HNSWAlgoKind kindB);
+		ComparisonTest(const std::string& testName, size_t idxA, size_t idxB);
 		ComparedConnections getComparedConnections(CommonState* s);
 
 	public:
@@ -104,30 +106,36 @@ namespace chm {
 	class TestLevels : public ComparisonTest {
 	public:
 		ActionResult run(CommonState* s) override;
-		TestLevels(HNSWAlgoKind kindA, HNSWAlgoKind kindB);
+		TestLevels(size_t idxA, size_t idxB);
 	};
 
 	class TestNeighborsIndices : public ComparisonTest {
 	public:
 		ActionResult run(CommonState* s) override;
-		TestNeighborsIndices(HNSWAlgoKind kindA, HNSWAlgoKind kindB);
+		TestNeighborsIndices(size_t idxA, size_t idxB);
 	};
 
 	class TestNeighborsLength : public ComparisonTest {
 	public:
 		ActionResult run(CommonState* s) override;
-		TestNeighborsLength(HNSWAlgoKind kindA, HNSWAlgoKind kindB);
+		TestNeighborsLength(size_t idxA, size_t idxB);
 	};
 
 	class TestNodeCount : public ComparisonTest {
 	public:
 		ActionResult run(CommonState* s) override;
-		TestNodeCount(HNSWAlgoKind kindA, HNSWAlgoKind kindB);
+		TestNodeCount(size_t idxA, size_t idxB);
 	};
 
 	class TestConnections : public ComparisonTest {
 	public:
 		ActionResult run(CommonState* s) override;
-		TestConnections(HNSWAlgoKind kindA, HNSWAlgoKind kindB);
+		TestConnections(size_t idxA, size_t idxB);
+	};
+
+	class ActionDebugBuild : public Action {
+	public:
+		ActionDebugBuild();
+		ActionResult run(CommonState* s) override;
 	};
 }

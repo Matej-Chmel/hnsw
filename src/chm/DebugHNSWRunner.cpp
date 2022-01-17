@@ -228,6 +228,8 @@ namespace chm {
 					fail(actualRes, algoIdx);
 			}
 		}
+
+		return expectedRes;
 	}
 
 	void DebugHNSWRunner::connect(size_t lc) {
