@@ -305,6 +305,9 @@ namespace chm {
 	}
 
 	void Graph::selectNeighborsHeuristic(const float* query, NearestHeap& outC, size_t M, size_t lc, bool useCache) {
+		if(outC.size() < M)
+			return;
+
 		NearestHeap R;
 		auto& W = outC;
 
@@ -486,7 +489,13 @@ namespace chm {
 	}
 
 	IdxVec3DPtr GraphWrapper::getConnections() const {
-		return std::make_shared<IdxVec3D>(this->hnsw->layers.begin(), this->hnsw->layers.begin() + this->hnsw->getNodeCount());
+		auto res = std::make_shared<IdxVec3D>(this->hnsw->layers.begin(), this->hnsw->layers.begin() + this->hnsw->getNodeCount());
+
+		for(auto& nodeLayers : *res)
+			for(auto& layer : nodeLayers)
+				std::sort(layer.begin(), layer.end());
+
+		return res;
 	}
 
 	DebugHNSW* GraphWrapper::getDebugObject() {
