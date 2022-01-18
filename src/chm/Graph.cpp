@@ -122,14 +122,14 @@ namespace chm {
 		return this->nodes.front();
 	}
 
-	void DynamicList::clear() {
-		this->furthestHeap.clear();
-		this->nearestHeap.clear();
-	}
-
 	void DynamicList::add(float distance, size_t nodeID) {
 		this->furthestHeap.push(distance, nodeID);
 		this->nearestHeap.push(distance, nodeID);
+	}
+
+	void DynamicList::clear() {
+		this->furthestHeap.clear();
+		this->nearestHeap.clear();
 	}
 
 	DynamicList::DynamicList(float distance, size_t entryID) {
@@ -247,6 +247,10 @@ namespace chm {
 
 			if(lc == 0)
 				break;
+
+			W.clear();
+			auto& nearestNeighbor = neighbors.top();
+			W.add(nearestNeighbor.distance, nearestNeighbor.nodeID);
 		}
 
 		if(l > L) {

@@ -72,13 +72,12 @@ namespace chm {
 	};
 
 	class DynamicList : public Unique {
-		void clear();
-
 	public:
 		FurthestHeap furthestHeap;
 		NearestHeap nearestHeap;
 
 		void add(float distance, size_t nodeID);
+		void clear();
 		DynamicList(float distance, size_t entryID);
 		void fillResults(size_t K, IdxVec& outIDs, FloatVec& outDistances);
 		NodeDistance furthest();
