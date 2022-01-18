@@ -62,14 +62,6 @@ namespace chm {
 			layer.push_back(item.nodeID);
 	}
 
-	bool NearestHeap::isCloserThanAny(NodeDistance& node) {
-		if(this->nodes.empty())
-			return true;
-
-		auto& nearest = this->top();
-		return nearest.distance > node.distance;
-	}
-
 	void NearestHeap::keepNearest(size_t K) {
 		if(this->size() > K) {
 			std::vector<NodeDistance> nearest;
@@ -208,6 +200,8 @@ namespace chm {
 	}
 
 	void Graph::insert(const float* coords, size_t queryID) {
+		std::copy(coords, coords + cfg.dim, this->coords.begin() + this->nodeCount * this->cfg.dim);
+
 		if(queryID == 0) {
 			this->entryLevel = this->getNewLevel();
 			this->nodeCount = 1;
@@ -215,7 +209,6 @@ namespace chm {
 			return;
 		}
 
-		std::copy(coords, coords + cfg.dim, this->coords.begin() + this->nodeCount * this->cfg.dim);
 		this->distancesCache.clear();
 		this->nodeCount++;
 
@@ -311,6 +304,7 @@ namespace chm {
 		NearestHeap R;
 		auto& W = outC;
 
+		/*
 		if(this->cfg.extendCandidates) {
 			std::unordered_set<size_t> visited;
 
@@ -325,24 +319,35 @@ namespace chm {
 			for(const auto& ID : visited)
 				W.push(this->getDistance(this->getCoords(ID), query, useCache, ID), ID);
 		}
+		*/
 
-		NearestHeap Wd;
+		// NearestHeap Wd;
 
 		while(W.size() > 0 && R.size() < M) {
 			auto e = W.pop();
 
-			if(R.isCloserThanAny(e))
-				R.push(e.distance, e.nodeID);
+			for(auto& rNode : R.nodes)
+				if(this->getDistance(this->getCoords(e.nodeID), this->getCoords(rNode.nodeID)) < e.distance)
+					goto isNotCloser;
+
+			R.push(e.distance, e.nodeID);
+
+			/*
 			else if(this->cfg.keepPrunedConnections)
 				Wd.push(e.distance, e.nodeID);
+			*/
+
+			isNotCloser:;
 		}
 
+		/*
 		if(this->cfg.keepPrunedConnections) {
 			while(Wd.size() > 0 && R.size() < M) {
 				auto discardedNearest = Wd.pop();
 				R.push(discardedNearest.distance, discardedNearest.nodeID);
 			}
 		}
+		*/
 
 		outC.swap(R);
 	}

@@ -59,7 +59,6 @@ namespace chm {
 
 		void clear();
 		void fillLayer(IdxVec& layer);
-		bool isCloserThanAny(NodeDistance& node);
 		void keepNearest(size_t K);
 		NearestHeap();
 		NearestHeap(NearestHeap& other);
