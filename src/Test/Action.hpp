@@ -26,6 +26,7 @@ namespace chm {
 	enum class HNSWAlgoKind {
 		BACA,
 		BACA_DEBUG,
+		CHM_HNSW,
 		HNSWLIB,
 		HNSWLIB_DEBUG
 	};

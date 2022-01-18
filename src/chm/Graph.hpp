@@ -6,10 +6,11 @@
 namespace chm {
 	struct Config {
 		size_t dim;
+		size_t maxNodeCount;
 
 		size_t efConstruction;
 		size_t M;
-		float mL;
+		double mL;
 		size_t Mmax;
 		size_t Mmax0;
 
@@ -19,8 +20,6 @@ namespace chm {
 
 		void calcML();
 		Config(const HNSWConfigPtr& cfg);
-		Config(size_t dim);
-		Config& setHeuristic(bool extendCandidates = false, bool keepPrunedConnections = false);
 	};
 
 	struct NodeDistance {
@@ -89,12 +88,6 @@ namespace chm {
 		size_t size();
 	};
 
-	enum class State {
-		INSERTING,
-		SEARCHING,
-		SHRINKING
-	};
-
 	class Graph : public Unique {
 	public:
 		Config cfg;
@@ -102,45 +95,40 @@ namespace chm {
 		size_t entryID;
 		size_t entryLevel;
 
-		std::unordered_map<size_t, float> distances;
+		std::unordered_map<size_t, float> distancesCache;
 		IdxVec3D layers;
 
-		float* coords;
-		float* queryCoords;
+		FloatVec coords;
 
 		std::default_random_engine gen;
-		std::uniform_real_distribution<float> dist;
 
 		std::ostream* debugStream;
 		size_t nodeCount;
 
-		float getDistance(size_t nodeID, size_t queryID, State s = State::INSERTING);
+		float getDistance(const float* node, const float* query, bool useCache = false, size_t nodeID = 0);
 		size_t getNewLevel();
 
-		void insert(size_t queryID);
-		void searchLayer(size_t queryID, DynamicList& W, size_t ef, size_t lc, State s = State::INSERTING);
-		void selectNeighbors(size_t queryID, NearestHeap& outC, size_t M, size_t lc, State s = State::INSERTING);
-		void selectNeighborsHeuristic(size_t queryID, NearestHeap& outC, size_t M, size_t lc, State s);
+		void insert(const float* coords, size_t queryID);
+		void searchLayer(const float* query, DynamicList& W, size_t ef, size_t lc);
+		void selectNeighbors(const float* query, NearestHeap& outC, size_t M, size_t lc, bool useCache);
+		void selectNeighborsHeuristic(const float* query, NearestHeap& outC, size_t M, size_t lc, bool useCache);
 		void selectNeighborsSimple(NearestHeap& outC, size_t M);
-		void knnSearch(size_t queryID, size_t K, size_t ef, IdxVec& outIDs, FloatVec& outDistances);
+		void knnSearch(const float* query, size_t K, size_t ef, IdxVec& outIDs, FloatVec& outDistances);
 
 		void connect(size_t queryID, NearestHeap& neighbors, size_t lc);
-		void fillHeap(size_t queryID, IdxVec& eConn, NearestHeap& eNewConn);
+		void fillHeap(const float* query, IdxVec& eConn, NearestHeap& eNewConn);
 		void initLayers(size_t queryID, size_t level);
 
-		Graph(const Config& cfg, unsigned int seed, bool useRndSeed);
+		Graph(const Config& cfg, unsigned int seed);
 
-		void build(float* coords, size_t count);
-		void search(
-			float* queryCoords, size_t queryCount, size_t K, size_t ef,
-			IdxVec2D& outIDs, FloatVec2D& outDistances
-		);
+		void build(const FloatVec& coords);
+		void search(const FloatVec& queryCoords, size_t K, size_t ef, IdxVec2D& outIDs, FloatVec2D& outDistances);
 
 		size_t getNodeCount();
 		void printLayers(std::ostream& s);
 		void setDebugStream(std::ostream& s);
 
-		void init(float* coords, size_t count);
+		const float* getCoords(size_t idx);
 	};
 
 	class GraphWrapper : public HNSWAlgo {
@@ -152,10 +140,12 @@ namespace chm {
 		void insert(float* data, size_t idx) override;
 
 	public:
+		virtual ~GraphWrapper();
 		IdxVec3DPtr getConnections() const override;
 		DebugHNSW* getDebugObject() override;
 		GraphWrapper(const HNSWConfigPtr& cfg);
 		void init() override;
+		KNNResultPtr search(const FloatVecPtr& coords, size_t K) override;
 		void setSearchEF(size_t ef) override;
 	};
 }

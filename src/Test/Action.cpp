@@ -2,6 +2,7 @@
 #include "Action.hpp"
 #include "chm/DebugHNSWRunner.hpp"
 #include "chm/debugWrappers.hpp"
+#include "chm/Graph.hpp"
 
 namespace chm {
 	void throwUnknownKind(HNSWAlgoKind k) {
@@ -17,6 +18,9 @@ namespace chm {
 				break;
 			case HNSWAlgoKind::BACA_DEBUG:
 				algo = std::make_shared<BacaDebugWrapper>(cfg);
+				break;
+			case HNSWAlgoKind::CHM_HNSW:
+				algo = std::make_shared<GraphWrapper>(cfg);
 				break;
 			case HNSWAlgoKind::HNSWLIB:
 				algo = std::make_shared<hnswlibWrapper>(cfg);
