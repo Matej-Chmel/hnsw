@@ -1,35 +1,6 @@
 #include "debugWrappers.hpp"
 
 namespace chm {
-	void directDebugInsert(DebugHNSW* debugObj, float* data, size_t idx) {
-		debugObj->startInsert(data, idx);
-		debugObj->prepareUpperSearch();
-
-		auto range = debugObj->getUpperRange();
-
-		if(range.shouldLoop)
-			for(auto lc = range.start; lc > range.end; lc--)
-				debugObj->searchUpperLayers(lc);
-
-		range = debugObj->getLowerRange();
-
-		if(range.shouldLoop) {
-			debugObj->prepareLowerSearch();
-
-			for(auto lc = range.start;; lc--) {
-				debugObj->searchLowerLayers(lc);
-				debugObj->selectOriginalNeighbors(lc);
-				debugObj->connect(lc);
-				debugObj->prepareNextLayer(lc);
-
-				if(lc == 0)
-					break;
-			}
-		}
-
-		debugObj->setupEnterPoint();
-	}
-
 	NodeVecPtr vecFromNeighbors(NeighborsVec& v) {
 		auto len = v.size();
 		auto res = std::make_shared<NodeVec>();
@@ -397,7 +368,7 @@ namespace chm {
 	}
 
 	void hnswlibDebugWrapper::insert(float* data, size_t idx) {
-		directDebugInsert(this->debugObj, data, idx);
+		this->debugObj->directInsert(data, idx);
 	}
 
 	hnswlibDebugWrapper::~hnswlibDebugWrapper() {
@@ -705,7 +676,7 @@ namespace chm {
 	}
 
 	void BacaDebugWrapper::insert(float* data, size_t idx) {
-		directDebugInsert(this->debugObj, data, idx);
+		this->debugObj->directInsert(data, idx);
 	}
 
 	BacaDebugWrapper::~BacaDebugWrapper() {

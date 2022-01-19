@@ -43,5 +43,7 @@ namespace chm {
 		virtual void prepareNextLayer(size_t lc) = 0;
 		virtual void setupEnterPoint() = 0;
 		virtual size_t getEnterPoint() = 0;
+
+		void directInsert(float* data, size_t idx);
 	};
 }

@@ -22,40 +22,33 @@ namespace chm {
 		Config(const HNSWConfigPtr& cfg);
 	};
 
-	struct NodeDistance {
-		float distance;
-		size_t nodeID;
-	};
-
-	typedef std::vector<NodeDistance> NodeDistanceVec;
-
 	struct FurthestComparator {
-		constexpr bool operator()(const NodeDistance& a, const NodeDistance& b) const noexcept;
+		constexpr bool operator()(const Node& a, const Node& b) const noexcept;
 	};
 
 	class FurthestHeap : public Unique {
 		FurthestComparator cmp;
 
 	public:
-		NodeDistanceVec nodes;
+		NodeVec nodes;
 
 		void clear();
 		FurthestHeap();
-		FurthestHeap(NodeDistanceVec& ep);
+		FurthestHeap(NodeVec& ep);
 		void push(float distance, size_t nodeID);
-		NodeDistance pop();
-		NodeDistance top();
+		Node pop();
+		Node top();
 	};
 
 	struct NearestComparator {
-		constexpr bool operator()(const NodeDistance& a, const NodeDistance& b) const noexcept;
+		constexpr bool operator()(const Node& a, const Node& b) const noexcept;
 	};
 
 	class NearestHeap : public Unique {
 		NearestComparator cmp;
 
 	public:
-		NodeDistanceVec nodes;
+		NodeVec nodes;
 
 		void clear();
 		void fillLayer(IdxVec& layer);
@@ -63,12 +56,12 @@ namespace chm {
 		NearestHeap();
 		NearestHeap(NearestHeap& other);
 		void push(float distance, size_t nodeID);
-		NodeDistance pop();
+		Node pop();
 		void remove(size_t nodeID);
 		void reserve(size_t s);
 		size_t size();
 		void swap(NearestHeap& other);
-		NodeDistance& top();
+		Node& top();
 	};
 
 	class DynamicList : public Unique {
@@ -78,9 +71,10 @@ namespace chm {
 
 		void add(float distance, size_t nodeID);
 		void clear();
+		DynamicList() = default;
 		DynamicList(float distance, size_t entryID);
 		void fillResults(size_t K, IdxVec& outIDs, FloatVec& outDistances);
-		NodeDistance furthest();
+		Node furthest();
 		void keepOnlyNearest();
 		void removeFurthest();
 		size_t size();
@@ -142,8 +136,59 @@ namespace chm {
 		IdxVec3DPtr getConnections() const override;
 		DebugHNSW* getDebugObject() override;
 		GraphWrapper(const HNSWConfigPtr& cfg);
+		GraphWrapper(const HNSWConfigPtr& cfg, const std::string& name);
 		void init() override;
 		KNNResultPtr search(const FloatVecPtr& coords, size_t K) override;
 		void setSearchEF(size_t ef) override;
+	};
+
+	struct GraphLocals {
+		float* coords;
+		size_t L;
+		size_t l;
+		size_t layerMmax;
+		size_t queryID;
+		bool isFirstNode;
+		NearestHeap neighbors;
+		DynamicList W;
+	};
+
+	class DebugGraph : public DebugHNSW {
+		Graph* hnsw;
+		GraphLocals local;
+
+	public:
+		DebugGraph(Graph* hnsw);
+
+		void startInsert(float* coords, size_t idx);
+		size_t getLatestLevel();
+		void prepareUpperSearch();
+		LevelRange getUpperRange();
+		void searchUpperLayers(size_t lc);
+		Node getNearestNode();
+		void prepareLowerSearch();
+		LevelRange getLowerRange();
+		void searchLowerLayers(size_t lc);
+		NodeVecPtr getLowerLayerResults();
+		void selectOriginalNeighbors(size_t lc);
+		NodeVecPtr getOriginalNeighbors();
+		void connect(size_t lc);
+		IdxVecPtr getNeighborsForNode(size_t nodeIdx, size_t lc);
+		void prepareNextLayer(size_t lc);
+		void setupEnterPoint();
+		size_t getEnterPoint();
+	};
+
+	class GraphDebugWrapper : public GraphWrapper {
+		DebugGraph* debugObj;
+
+	protected:
+		void insert(float* data, size_t idx) override;
+
+	public:
+		~GraphDebugWrapper();
+		GraphDebugWrapper(const HNSWConfigPtr& cfg);
+		DebugHNSW* getDebugObject() override;
+		void init() override;
 	};
 }
