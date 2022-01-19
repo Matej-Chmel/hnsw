@@ -6,10 +6,7 @@
 namespace chm {
 	NodeVecPtr sortedNearest(NearestHeap& h) {
 		auto res = std::make_shared<NodeVec>(h.nodes.begin(), h.nodes.end());
-
-		// Sorts nodes with lowest distance first.
-		std::sort(res->begin(), res->end(), FurthestComparator());
-
+		std::sort(res->begin(), res->end(), NodeComparator());
 		return res;
 	}
 
@@ -652,7 +649,9 @@ namespace chm {
 
 	IdxVecPtr DebugGraph::getNeighborsForNode(size_t nodeIdx, size_t lc) {
 		auto& layer = this->hnsw->layers[nodeIdx][lc];
-		return std::make_shared<IdxVec>(layer.begin(), layer.end());
+		auto res = std::make_shared<IdxVec>(layer.begin(), layer.end());
+		std::sort(res->begin(), res->end());
+		return res;
 	}
 
 	void DebugGraph::prepareNextLayer(size_t lc) {

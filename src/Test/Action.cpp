@@ -22,6 +22,9 @@ namespace chm {
 			case HNSWAlgoKind::CHM_HNSW:
 				algo = std::make_shared<GraphWrapper>(cfg);
 				break;
+			case HNSWAlgoKind::CHM_HNSW_DEBUG:
+				algo = std::make_shared<GraphDebugWrapper>(cfg);
+				break;
 			case HNSWAlgoKind::HNSWLIB:
 				algo = std::make_shared<hnswlibWrapper>(cfg);
 				break;

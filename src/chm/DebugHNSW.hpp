@@ -14,7 +14,12 @@ namespace chm {
 	typedef std::shared_ptr<NodeVec> NodeVecPtr;
 
 	struct NodeComparator {
-		bool operator()(const Node& a, const Node& b) const;
+		constexpr bool operator()(const Node& a, const Node& b) const noexcept {
+			if(a.distance == b.distance)
+				return a.idx < b.idx;
+
+			return a.distance < b.distance;
+		}
 	};
 
 	struct LevelRange {

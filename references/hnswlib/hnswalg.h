@@ -9,7 +9,7 @@
 #include <unordered_set>
 #include <list>
 
-#define HNSWLIB_DECIDE_BY_INDEX
+// #define HNSWLIB_DECIDE_BY_INDEX
 
 namespace hnswlib {
     typedef unsigned int tableint;

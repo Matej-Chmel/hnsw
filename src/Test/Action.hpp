@@ -27,6 +27,7 @@ namespace chm {
 		BACA,
 		BACA_DEBUG,
 		CHM_HNSW,
+		CHM_HNSW_DEBUG,
 		HNSWLIB,
 		HNSWLIB_DEBUG
 	};
