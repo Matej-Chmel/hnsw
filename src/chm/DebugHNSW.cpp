@@ -1,9 +1,9 @@
 #include "DebugHNSW.hpp"
 
 namespace chm {
-	Node::Node() : distance(0.f), idx(0) {}
+	Node::Node() : dist(0.f), idx(0) {}
 
-	Node::Node(float distance, size_t idx) : distance(distance), idx(idx) {}
+	Node::Node(float dist, size_t idx) : dist(dist), idx(idx) {}
 
 	void DebugHNSW::directInsert(float* data, size_t idx) {
 		this->startInsert(data, idx);

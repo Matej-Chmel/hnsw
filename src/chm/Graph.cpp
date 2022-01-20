@@ -4,181 +4,59 @@
 #include "Graph.hpp"
 
 namespace chm {
-	NodeVecPtr sortedNearest(NearestHeap& h) {
-		auto res = std::make_shared<NodeVec>(h.nodes.begin(), h.nodes.end());
+	NodeVecPtr sortedNearest(FarHeap& h) {
+		auto res = std::make_shared<NodeVec>(h.begin(), h.end());
 		std::sort(res->begin(), res->end(), NodeComparator());
 		return res;
 	}
 
-	void Config::calcML() {
-		this->mL = 1.0 / std::log(1.0 * this->M);
-	}
-
 	Config::Config(const HNSWConfigPtr& cfg)
-		: dim(cfg->dim), maxNodeCount(cfg->maxElements), efConstruction(cfg->efConstruction), M(cfg->M), Mmax(cfg->M), Mmax0(cfg->M * 2),
-		useHeuristic(true), extendCandidates(false), keepPrunedConnections(false) {
+		: dim(cfg->dim), efConstruction(cfg->efConstruction), M(cfg->M), mL(1.0 / std::log(1.0 * this->M)), Mmax(cfg->M), Mmax0(cfg->M * 2) {}
 
-		this->calcML();
+	constexpr bool FarComparator::operator()(const Node& a, const Node& b) const noexcept {
+		return a.dist < b.dist;
 	}
 
-	constexpr bool FurthestComparator::operator()(const Node& a, const Node& b) const noexcept {
-		return a.distance < b.distance;
+	constexpr bool NearComparator::operator()(const Node& a, const Node& b) const noexcept {
+		return a.dist > b.dist;
 	}
 
-	void FurthestHeap::clear() {
-		this->nodes.clear();
-	}
+	void Graph::connect(FarHeap& neighborHeap, IdxVec& resNeighbors) {
+		const auto len = neighborHeap.len();
+		resNeighbors.clear();
+		resNeighbors.reserve(len);
 
-	FurthestHeap::FurthestHeap() {}
+		if(len < 2)
+			resNeighbors.emplace_back(neighborHeap.top().idx);
+		else {
+			const auto shortLen = len - 2;
 
-	FurthestHeap::FurthestHeap(NodeVec& ep) {
-		this->nodes = ep;
-		std::make_heap(this->nodes.begin(), this->nodes.end(), this->cmp);
-	}
-
-	void FurthestHeap::push(float distance, size_t nodeID) {
-		this->nodes.push_back({distance, nodeID});
-		std::push_heap(this->nodes.begin(), this->nodes.end(), this->cmp);
-	}
-
-	Node FurthestHeap::pop() {
-		std::pop_heap(this->nodes.begin(), this->nodes.end(), this->cmp);
-		Node item = this->nodes.back();
-		this->nodes.pop_back();
-		return item;
-	}
-
-	Node FurthestHeap::top() {
-		return this->nodes.front();
-	}
-
-	constexpr bool NearestComparator::operator()(const Node& a, const Node& b) const noexcept {
-		return a.distance > b.distance;
-	}
-
-	void NearestHeap::clear() {
-		this->nodes.clear();
-	}
-
-	void NearestHeap::fillLayer(IdxVec& layer) {
-		layer.clear();
-		layer.reserve(this->nodes.size());
-
-		for(auto& item : this->nodes)
-			layer.push_back(item.idx);
-	}
-
-	void NearestHeap::keepNearest(size_t K) {
-		if(this->size() > K) {
-			std::vector<Node> nearest;
-			nearest.reserve(K);
-
-			for(size_t i = 0; i < K; i++)
-				nearest.push_back(this->pop());
-
-			nearest.swap(this->nodes);
-		}
-	}
-
-	NearestHeap::NearestHeap() {}
-
-	NearestHeap::NearestHeap(NearestHeap& other) {
-		this->nodes = other.nodes;
-	}
-
-	void NearestHeap::push(float distance, size_t nodeID) {
-		this->nodes.push_back({distance, nodeID});
-		std::push_heap(this->nodes.begin(), this->nodes.end(), this->cmp);
-	}
-
-	Node NearestHeap::pop() {
-		std::pop_heap(this->nodes.begin(), this->nodes.end(), this->cmp);
-		Node item = this->nodes.back();
-		this->nodes.pop_back();
-		return item;
-	}
-
-	void NearestHeap::remove(size_t nodeID) {
-		auto len = this->nodes.size();
-
-		for(size_t i = 0; i < len; i++) {
-			auto& item = this->nodes[i];
-
-			if(item.idx == nodeID) {
-				this->nodes.erase(this->nodes.begin() + i);
-				std::make_heap(this->nodes.begin(), this->nodes.end(), this->cmp);
-				break;
+			for(size_t i = 0; i < shortLen; i++) {
+				resNeighbors.emplace_back(neighborHeap.top().idx);
+				neighborHeap.pop();
 			}
+
+			resNeighbors.emplace_back(neighborHeap.top().idx);
+			resNeighbors.emplace_back(neighborHeap.back().idx);
 		}
 	}
 
-	void NearestHeap::reserve(size_t s) {
-		this->nodes.reserve(s);
+	void Graph::fillHeap(const float* query, size_t newIdx, IdxVec& eConn, FarHeap& eNewConn) {
+		eNewConn.clear();
+		eNewConn.reserve(eConn.size());
+		eNewConn.push(this->getDistance(this->getCoords(newIdx), query), newIdx);
+
+		for(auto& idx : eConn)
+			eNewConn.push(this->getDistance(this->getCoords(idx), query), idx);
 	}
 
-	size_t NearestHeap::size() {
-		return this->nodes.size();
+	const float* Graph::getCoords(size_t idx) {
+		return &this->coords[idx * this->cfg.dim];
 	}
 
-	void NearestHeap::swap(NearestHeap& other) {
-		this->nodes.swap(other.nodes);
-	}
-
-	Node& NearestHeap::top() {
-		return this->nodes.front();
-	}
-
-	void DynamicList::add(float distance, size_t nodeID) {
-		this->furthestHeap.push(distance, nodeID);
-		this->nearestHeap.push(distance, nodeID);
-	}
-
-	void DynamicList::clear() {
-		this->furthestHeap.clear();
-		this->nearestHeap.clear();
-	}
-
-	DynamicList::DynamicList(float distance, size_t entryID) {
-		this->add(distance, entryID);
-	}
-
-	void DynamicList::fillResults(size_t K, IdxVec& outIDs, FloatVec& outDistances) {
-		size_t len = std::min(K, this->size());
-		outIDs.reserve(len);
-		outDistances.reserve(len);
-
-		for(size_t i = 0; i < len; i++) {
-			auto& item = this->nearestHeap.top();
-
-			outIDs.push_back(item.idx);
-			outDistances.push_back(item.distance);
-			this->nearestHeap.pop();
-		}
-	}
-
-	Node DynamicList::furthest() {
-		return this->furthestHeap.top();
-	}
-
-	void DynamicList::keepOnlyNearest() {
-		Node nearest = this->nearestHeap.top();
-
-		this->clear();
-		this->add(nearest.distance, nearest.idx);
-	}
-
-	void DynamicList::removeFurthest() {
-		auto item = this->furthestHeap.pop();
-		this->nearestHeap.remove(item.idx);
-	}
-
-	size_t DynamicList::size() {
-		return this->nearestHeap.size();
-	}
-
-	float Graph::getDistance(const float* node, const float* query, bool useCache, size_t nodeID) {
+	float Graph::getDistance(const float* node, const float* query, bool useCache, size_t nodeIdx) {
 		if(useCache) {
-			auto iter = this->distancesCache.find(nodeID);
+			auto iter = this->distancesCache.find(nodeIdx);
 
 			if(iter != this->distancesCache.end())
 				return iter->second;
@@ -192,9 +70,13 @@ namespace chm {
 		}
 
 		if(useCache)
-			this->distancesCache[nodeID] = res;
+			this->distancesCache[nodeIdx] = res;
 
 		return res;
+	}
+
+	IdxVec& Graph::getNeighbors(size_t idx, size_t lc) {
+		return this->connections[idx][lc];
 	}
 
 	size_t Graph::getNewLevel() {
@@ -205,294 +87,199 @@ namespace chm {
 		);
 	}
 
-	void Graph::insert(const float* coords, size_t queryID) {
-		std::copy(coords, coords + this->cfg.dim, this->coords.begin() + this->nodeCount * this->cfg.dim);
+	Graph::Graph(const Config& cfg, size_t maxNodeCount, unsigned int seed)
+		: cfg(cfg), entryIdx(0), entryLevel(0), nodeCount(0) {
 
-		if(queryID == 0) {
+		this->coords.resize(cfg.dim * maxNodeCount);
+		this->gen.seed(seed);
+		this->connections.resize(maxNodeCount);
+	}
+
+	void Graph::initConnections(size_t queryIdx, size_t level) {
+		size_t nLayers = level + 1;
+		auto& qLayers = this->connections[queryIdx];
+		qLayers.resize(nLayers);
+	}
+
+	void Graph::insert(const float* queryCoords, size_t queryIdx) {
+		std::copy(queryCoords, queryCoords + this->cfg.dim, this->coords.begin() + this->nodeCount * this->cfg.dim);
+
+		if(queryIdx == 0) {
 			this->entryLevel = this->getNewLevel();
 			this->nodeCount = 1;
-			this->initLayers(this->entryID, this->entryLevel);
+			this->initConnections(this->entryIdx, this->entryLevel);
 			return;
 		}
 
 		this->distancesCache.clear();
 		this->nodeCount++;
 
-		DynamicList W(this->getDistance(this->getCoords(this->entryID), coords, true, this->entryID), this->entryID);
+		Node ep(this->getDistance(this->getCoords(this->entryIdx), queryCoords, true, this->entryIdx), this->entryIdx);
 		auto L = this->entryLevel;
 		auto l = this->getNewLevel();
 
-		this->initLayers(queryID, l);
+		this->initConnections(queryIdx, l);
 
-		for(auto lc = L; lc > l; lc--) {
-			this->searchLayer(coords, W, 1, lc);
-			W.keepOnlyNearest();
-		}
+		for(auto lc = L; lc > l; lc--)
+			this->searchUpperLayer(queryCoords, ep, lc);
 
 		for(auto lc = std::min(L, l);; lc--) {
-			auto layerMmax = lc == 0 ? this->cfg.Mmax0 : this->cfg.Mmax;
+			FarHeap candidates;
+			this->searchLowerLayer(queryCoords, ep, this->cfg.efConstruction, lc, candidates);
+			this->selectNeighborsHeuristic(candidates, this->cfg.M);
 
-			this->searchLayer(coords, W, this->cfg.efConstruction, lc);
+			auto& neighbors = this->getNeighbors(queryIdx, lc);
+			this->connect(candidates, neighbors);
 
-			NearestHeap neighbors(W.nearestHeap);
-			this->selectNeighbors(coords, neighbors, this->cfg.M, lc, true);
-			this->connect(queryID, neighbors, lc);
+			// ep = nearest from candidates
+			ep = Node(candidates.back());
+			auto layerMmax = !lc ? this->cfg.Mmax0 : this->cfg.Mmax;
 
-			for(auto& e : neighbors.nodes) {
-				auto& eConn = this->layers[e.idx][lc];
+			for(auto& eIdx : neighbors) {
+				auto& eConn = this->getNeighbors(eIdx, lc);
 
-				if(eConn.size() > layerMmax) {
-					auto eCoords = this->getCoords(e.idx);
-
-					NearestHeap eNewConn;
-					this->fillHeap(eCoords, eConn, eNewConn);
-					this->selectNeighbors(eCoords, eNewConn, layerMmax, lc, false);
-					eNewConn.fillLayer(eConn);
+				if(eConn.size() < layerMmax)
+					eConn.push_back(queryIdx);
+				else {
+					this->fillHeap(this->getCoords(eIdx), queryIdx, eConn, candidates);
+					this->selectNeighborsHeuristic(candidates, layerMmax);
+					this->connect(candidates, eConn);
 				}
 			}
 
-			if(lc == 0)
+			if(!lc)
 				break;
-
-			W.clear();
-			auto& nearestNeighbor = neighbors.top();
-			W.add(nearestNeighbor.distance, nearestNeighbor.idx);
 		}
 
 		if(l > L) {
-			this->entryID = queryID;
+			this->entryIdx = queryIdx;
 			this->entryLevel = l;
 		}
 	}
 
-	void Graph::searchLayer(const float* query, DynamicList& W, size_t ef, size_t lc) {
-		std::unordered_set<size_t> v;
+	void Graph::searchUpperLayer(const float* query, Node& resEp, size_t lc) {
+		size_t prevIdx{};
 
-		for(auto& item : W.nearestHeap.nodes)
-			v.insert(item.idx);
+		do {
+			auto& neighbors = this->getNeighbors(resEp.idx, lc);
+			prevIdx = resEp.idx;
 
-		NearestHeap C(W.nearestHeap);
+			for(auto& cIdx : neighbors) {
+				auto dist = this->getDistance(this->getCoords(cIdx), query, true, cIdx);
 
-		while(C.size() > 0) {
-			auto c = C.pop();
-			auto f = W.furthest();
+				if(dist < resEp.dist) {
+					resEp.dist = dist;
+					resEp.idx = cIdx;
+				}
+			}
 
-			if(c.distance > f.distance)
-				break;
+		} while(resEp.idx != prevIdx);
+	}
 
-			auto& neighbors = this->layers[c.idx][lc];
+	void Graph::searchLowerLayer(const float* query, Node& ep, size_t ef, size_t lc, FarHeap& W) {
+		NearHeap C{ep};
+		std::unordered_set<size_t> v{ep.idx};
+		W.push(ep);
 
-			for(auto& eID : neighbors) {
-				if(v.find(eID) == v.end()) {
-					v.insert(eID);
-					f = W.furthest();
-					float eDistance = this->getDistance(this->getCoords(eID), query, true, eID);
+		while(C.len()) {
+			size_t cIdx;
 
-					if(eDistance < f.distance || W.size() < ef) {
-						C.push(eDistance, eID);
-						W.add(eDistance, eID);
+			{
+				auto& c = C.top();
+				auto& f = W.top();
 
-						if(W.size() > ef)
-							W.removeFurthest();
+				if(c.dist > f.dist && W.len() == ef)
+					break;
+
+				cIdx = c.idx;
+			}
+
+			auto& neighbors = this->getNeighbors(cIdx, lc);
+
+			// Extract nearest from C.
+			C.pop();
+
+			for(auto& eIdx : neighbors) {
+				if(v.insert(eIdx).second) {
+					auto eDistance = this->getDistance(this->getCoords(eIdx), query, true, eIdx);
+					bool shouldAdd;
+
+					{
+						auto& f = W.top();
+						shouldAdd = f.dist > eDistance || W.len() < ef;
+					}
+
+					if(shouldAdd) {
+						C.push(eDistance, eIdx);
+						W.push(eDistance, eIdx);
+
+						if(W.len() > ef)
+							W.pop();
 					}
 				}
 			}
 		}
 	}
 
-	void Graph::selectNeighbors(const float* query, NearestHeap& outC, size_t M, size_t lc, bool useCache) {
-		if(this->cfg.useHeuristic)
-			this->selectNeighborsHeuristic(query, outC, M, lc, useCache);
-		else
-			this->selectNeighborsSimple(outC, M);
-	}
-
-	void Graph::selectNeighborsHeuristic(const float* query, NearestHeap& outC, size_t M, size_t lc, bool useCache) {
-		if(outC.size() < M)
+	void Graph::selectNeighborsHeuristic(FarHeap& outC, size_t M) {
+		if(outC.len() < M)
 			return;
 
-		NearestHeap R;
-		auto& W = outC;
+		auto& R = outC;
+		NearHeap W(outC);
 
-		/*
-		if(this->cfg.extendCandidates) {
-			std::unordered_set<size_t> visited;
+		R.clear();
+		R.reserve(std::min(W.len(), M));
 
-			for(auto& e : outC.nodes) {
-				auto& neighbors = this->layers[e.idx][lc];
+		while(W.len() && R.len() < M) {
+			{
+				auto& e = W.top();
+				auto eCoords = this->getCoords(e.idx);
 
-				for(auto& eAdjID : neighbors)
-					if(visited.find(eAdjID) == visited.end())
-						visited.insert(eAdjID);
+				for(auto& rNode : R)
+					if(this->getDistance(eCoords, this->getCoords(rNode.idx)) < e.dist)
+						goto isNotCloser;
+
+				R.push(e.dist, e.idx);
 			}
-
-			for(const auto& ID : visited)
-				W.push(this->getDistance(this->getCoords(ID), query, useCache, ID), ID);
-		}
-		*/
-
-		// NearestHeap Wd;
-
-		while(W.size() > 0 && R.size() < M) {
-			auto e = W.pop();
-
-			for(auto& rNode : R.nodes)
-				if(this->getDistance(this->getCoords(e.idx), this->getCoords(rNode.idx)) < e.distance)
-					goto isNotCloser;
-
-			R.push(e.distance, e.idx);
-
-			/*
-			else if(this->cfg.keepPrunedConnections)
-				Wd.push(e.distance, e.idx);
-			*/
 
 			isNotCloser:;
-		}
 
-		/*
-		if(this->cfg.keepPrunedConnections) {
-			while(Wd.size() > 0 && R.size() < M) {
-				auto discardedNearest = Wd.pop();
-				R.push(discardedNearest.distance, discardedNearest.idx);
-			}
+			// Extract nearest from W.
+			W.pop();
 		}
-		*/
-
-		outC.swap(R);
 	}
 
-	void Graph::selectNeighborsSimple(NearestHeap& outC, size_t M) {
-		outC.keepNearest(M);
-	}
-
-	void Graph::knnSearch(const float* query, size_t K, size_t ef, IdxVec& outIDs, FloatVec& outDistances) {
+	void Graph::knnSearch(const float* query, size_t K, size_t ef, IdxVec& resIndices, FloatVec& resDistances) {
 		this->distancesCache.clear();
 
-		DynamicList W(this->getDistance(this->getCoords(this->entryID), query, true, this->entryID), this->entryID);
+		Node ep(this->getDistance(this->getCoords(this->entryIdx), query, true, this->entryIdx), this->entryIdx);
 		auto L = this->entryLevel;
 
-		for(size_t lc = L; lc > 0; lc--) {
-			this->searchLayer(query, W, 1, lc);
-			W.keepOnlyNearest();
-		}
+		for(size_t lc = L; lc > 0; lc--)
+			this->searchUpperLayer(query, ep, lc);
 
-		this->searchLayer(query, W, ef, 0);
-		W.fillResults(K, outIDs, outDistances);
-	}
+		FarHeap W;
+		this->searchLowerLayer(query, ep, ef, 0, W);
 
-	void Graph::connect(size_t queryID, NearestHeap& neighbors, size_t lc) {
-		auto& qLayer = this->layers[queryID][lc];
+		while(W.len() > K)
+			W.pop();
 
-		for(auto& item : neighbors.nodes) {
-			if(queryID == item.idx)
-				throw AppError("Tried to connect element "_f << queryID << " with itself at layer " << lc << '.');
+		const auto len = W.len();
+		resDistances.resize(len);
+		resIndices.resize(len);
 
-			qLayer.push_back(item.idx);
-
-			auto& itemLayer = this->layers[item.idx][lc];
-			itemLayer.push_back(queryID);
-		}
-	}
-
-	void Graph::fillHeap(const float* query, IdxVec& eConn, NearestHeap& eNewConn) {
-		eNewConn.reserve(eConn.size());
-
-		for(auto& ID : eConn)
-			eNewConn.push(this->getDistance(this->getCoords(ID), query), ID);
-	}
-
-	void Graph::initLayers(size_t queryID, size_t level) {
-		size_t nLayers = level + 1;
-		auto& qLayers = this->layers[queryID];
-		qLayers.resize(nLayers);
-	}
-
-	Graph::Graph(const Config& cfg, unsigned int seed)
-		: cfg(cfg), entryID(0), entryLevel(0), debugStream(nullptr), nodeCount(0) {
-
-		this->coords.resize(cfg.dim * cfg.maxNodeCount);
-		this->gen.seed(seed);
-		this->layers.resize(cfg.maxNodeCount);
-	}
-
-	void Graph::build(const FloatVec& coords) {
-		auto count = coords.size() / this->cfg.dim;
-		auto lastID = count - 1;
-
-		for(size_t i = 0; i < count; i++) {
-			this->insert(&coords[i * this->cfg.dim], i);
-
-			if(this->debugStream) {
-				this->printLayers(*this->debugStream);
-
-				if(i != lastID)
-					*this->debugStream << '\n';
+		for(size_t i = len - 1;; i--) {
+			{
+				auto& n = W.top();
+				resDistances[i] = n.dist;
+				resIndices[i] = n.idx;
 			}
+			W.pop();
+
+			if(!i)
+				break;
 		}
-	}
-
-	void Graph::search(const FloatVec& queryCoords, size_t K, size_t ef, IdxVec2D& outIDs, FloatVec2D& outDistances) {
-		const auto count = queryCoords.size() / this->cfg.dim;
-
-		if(!this->nodeCount)
-			throw AppError("No elements in the graph. Build the graph before searching.");
-
-		outIDs.resize(count);
-		outDistances.resize(count);
-
-		for(size_t i = 0; i < count; i++)
-			this->knnSearch(&queryCoords[i * this->cfg.dim], K, ef, outIDs[i], outDistances[i]);
-	}
-
-	size_t Graph::getNodeCount() {
-		return this->nodeCount;
-	}
-
-	void Graph::printLayers(std::ostream& s) {
-		auto count = this->getNodeCount();
-		auto lastID = count - 1;
-
-		for(size_t nodeID = 0; nodeID < count; nodeID++) {
-			s << "Node " << nodeID << '\n';
-
-			auto& nodeLayers = this->layers[nodeID];
-			auto nodeLayersLen = nodeLayers.size();
-
-			for(size_t layerID = nodeLayersLen - 1;; layerID--) {
-				s << "Layer " << layerID << ": ";
-
-				auto& layer = nodeLayers[layerID];
-
-				if(layer.empty()) {
-					s << "EMPTY\n";
-					continue;
-				}
-
-				auto lastIdx = layer.size() - 1;
-				IdxVec sortedLayer(layer);
-				std::sort(sortedLayer.begin(), sortedLayer.end());
-
-				for(size_t i = 0; i < lastIdx; i++)
-					s << sortedLayer[i] << ' ';
-
-				s << sortedLayer[lastIdx] << '\n';
-
-				if(layerID == 0)
-					break;
-			}
-
-			if(nodeID != lastID)
-				s << '\n';
-		}
-	}
-
-	void Graph::setDebugStream(std::ostream& s) {
-		this->debugStream = &s;
-	}
-
-	const float* Graph::getCoords(size_t idx) {
-		return &this->coords[idx * this->cfg.dim];
 	}
 
 	void GraphWrapper::insert(float* data, size_t idx) {
@@ -504,7 +291,7 @@ namespace chm {
 	}
 
 	IdxVec3DPtr GraphWrapper::getConnections() const {
-		auto res = std::make_shared<IdxVec3D>(this->hnsw->layers.begin(), this->hnsw->layers.begin() + this->hnsw->getNodeCount());
+		auto res = std::make_shared<IdxVec3D>(this->hnsw->connections.begin(), this->hnsw->connections.begin() + this->hnsw->nodeCount);
 
 		for(auto& nodeLayers : *res)
 			for(auto& layer : nodeLayers)
@@ -522,7 +309,7 @@ namespace chm {
 	GraphWrapper::GraphWrapper(const HNSWConfigPtr& cfg, const std::string& name) : HNSWAlgo(cfg, name), ef(0), hnsw(nullptr) {}
 
 	void GraphWrapper::init() {
-		this->hnsw = new Graph(Config(this->cfg), this->cfg->seed);
+		this->hnsw = new Graph(Config(this->cfg), this->cfg->maxElements, this->cfg->seed);
 	}
 
 	KNNResultPtr GraphWrapper::search(const FloatVecPtr& coords, size_t K) {
@@ -549,32 +336,34 @@ namespace chm {
 	DebugGraph::DebugGraph(Graph* hnsw) : hnsw(hnsw), local{} {}
 
 	void DebugGraph::startInsert(float* coords, size_t idx) {
-		this->local.coords = coords;
-		this->local.queryID = idx;
+		this->local.queryCoords = coords;
+		this->local.queryIdx = idx;
 
 		std::copy(
-			this->local.coords, this->local.coords + this->hnsw->cfg.dim,
+			this->local.queryCoords, this->local.queryCoords + this->hnsw->cfg.dim,
 			this->hnsw->coords.begin() + this->hnsw->nodeCount * this->hnsw->cfg.dim
 		);
 
-		this->local.isFirstNode = this->local.queryID == 0;
+		this->local.isFirstNode = !this->local.queryIdx;
 
-		if (this->local.isFirstNode) {
+		if(this->local.isFirstNode) {
 			this->hnsw->entryLevel = this->hnsw->getNewLevel();
 			this->hnsw->nodeCount = 1;
-			this->hnsw->initLayers(this->hnsw->entryID, this->hnsw->entryLevel);
+			this->hnsw->initConnections(this->hnsw->entryIdx, this->hnsw->entryLevel);
 			return;
 		}
 
 		this->hnsw->distancesCache.clear();
 		this->hnsw->nodeCount++;
 
-		this->local.W.clear();
-		this->local.W.add(this->hnsw->getDistance(this->hnsw->getCoords(this->hnsw->entryID), coords, true, this->hnsw->entryID), this->hnsw->entryID);
+		this->local.ep = {
+			this->hnsw->getDistance(this->hnsw->getCoords(this->hnsw->entryIdx), this->local.queryCoords, true, this->hnsw->entryIdx),
+			this->hnsw->entryIdx
+		};
 		this->local.L = this->hnsw->entryLevel;
 		this->local.l = this->hnsw->getNewLevel();
 
-		this->hnsw->initLayers(this->local.queryID, this->local.l);
+		this->hnsw->initConnections(this->local.queryIdx, this->local.l);
 	}
 
 	size_t DebugGraph::getLatestLevel() {
@@ -593,12 +382,11 @@ namespace chm {
 	}
 
 	void DebugGraph::searchUpperLayers(size_t lc) {
-		this->hnsw->searchLayer(this->local.coords, this->local.W, 1, lc);
-		this->local.W.keepOnlyNearest();
+		this->hnsw->searchUpperLayer(this->local.queryCoords, this->local.ep, lc);
 	}
 
 	Node DebugGraph::getNearestNode() {
-		return this->local.W.nearestHeap.top();
+		return this->local.ep;
 	}
 
 	void DebugGraph::prepareLowerSearch() {
@@ -612,66 +400,68 @@ namespace chm {
 		return {std::min(this->local.L, this->local.l), 0, true};
 	}
 
+	size_t DebugGraph::getLowerSearchEntry() {
+		return this->local.ep.idx;
+	}
+
 	void DebugGraph::searchLowerLayers(size_t lc) {
-		this->local.layerMmax = lc == 0 ? this->hnsw->cfg.Mmax0 : this->hnsw->cfg.Mmax;
-		this->hnsw->searchLayer(this->local.coords, this->local.W, this->hnsw->cfg.efConstruction, lc);
+		this->local.candidates = FarHeap{};
+		this->hnsw->searchLowerLayer(this->local.queryCoords, this->local.ep, this->hnsw->cfg.efConstruction, lc, this->local.candidates);
 	}
 
 	NodeVecPtr DebugGraph::getLowerLayerResults() {
-		return sortedNearest(this->local.W.nearestHeap);
+		return sortedNearest(this->local.candidates);
 	}
 
 	void DebugGraph::selectOriginalNeighbors(size_t lc) {
-		this->local.neighbors.nodes = this->local.W.nearestHeap.nodes;
-		this->hnsw->selectNeighbors(this->local.coords, this->local.neighbors, this->hnsw->cfg.M, lc, true);
+		this->hnsw->selectNeighborsHeuristic(this->local.candidates, this->hnsw->cfg.M);
 	}
 
 	NodeVecPtr DebugGraph::getOriginalNeighbors() {
-		return sortedNearest(this->local.neighbors);
+		return sortedNearest(this->local.candidates);
 	}
 
 	void DebugGraph::connect(size_t lc) {
-		this->hnsw->connect(this->local.queryID, this->local.neighbors, lc);
+		auto& neighbors = this->hnsw->getNeighbors(this->local.queryIdx, lc);
+		this->hnsw->connect(this->local.candidates, neighbors);
 
-		for(auto& e : this->local.neighbors.nodes) {
-			auto& eConn = this->hnsw->layers[e.idx][lc];
+		// ep = nearest from candidates
+		this->local.ep = Node(this->local.candidates.back());
+		auto layerMmax = !lc ? this->hnsw->cfg.Mmax0 : this->hnsw->cfg.Mmax;
 
-			if(eConn.size() > this->local.layerMmax) {
-				auto eCoords = this->hnsw->getCoords(e.idx);
+		for(auto& eIdx : neighbors) {
+			auto& eConn = this->hnsw->getNeighbors(eIdx, lc);
 
-				NearestHeap eNewConn;
-				this->hnsw->fillHeap(eCoords, eConn, eNewConn);
-				this->hnsw->selectNeighbors(eCoords, eNewConn, this->local.layerMmax, lc, false);
-				eNewConn.fillLayer(eConn);
+			if(eConn.size() < layerMmax)
+				eConn.push_back(this->local.queryIdx);
+			else {
+				this->hnsw->fillHeap(this->hnsw->getCoords(eIdx), this->local.queryIdx, eConn, this->local.candidates);
+				this->hnsw->selectNeighborsHeuristic(this->local.candidates, layerMmax);
+				this->hnsw->connect(this->local.candidates, eConn);
 			}
 		}
 	}
 
-	IdxVecPtr DebugGraph::getNeighborsForNode(size_t nodeIdx, size_t lc) {
-		auto& layer = this->hnsw->layers[nodeIdx][lc];
-		auto res = std::make_shared<IdxVec>(layer.begin(), layer.end());
+	IdxVecPtr DebugGraph::getNeighborsForNode(size_t idx, size_t lc) {
+		auto& neighbors = this->hnsw->getNeighbors(idx, lc);
+		auto res = std::make_shared<IdxVec>(neighbors.begin(), neighbors.end());
 		std::sort(res->begin(), res->end());
 		return res;
 	}
 
 	void DebugGraph::prepareNextLayer(size_t lc) {
-		if(lc == 0)
-			return;
-
-		this->local.W.clear();
-		auto& nearestNeighbor = this->local.neighbors.top();
-		this->local.W.add(nearestNeighbor.distance, nearestNeighbor.idx);
+		// Nothing to prepare.
 	}
 
 	void DebugGraph::setupEnterPoint() {
 		if(this->local.l > this->local.L) {
-			this->hnsw->entryID = this->local.queryID;
+			this->hnsw->entryIdx = this->local.queryIdx;
 			this->hnsw->entryLevel = this->local.l;
 		}
 	}
 
 	size_t DebugGraph::getEnterPoint() {
-		return this->hnsw->entryID;
+		return this->hnsw->entryIdx;
 	}
 
 	void GraphDebugWrapper::insert(float* data, size_t idx) {
@@ -682,7 +472,7 @@ namespace chm {
 		delete this->debugObj;
 	}
 
-	GraphDebugWrapper::GraphDebugWrapper(const HNSWConfigPtr& cfg) : GraphWrapper(cfg, "chm-HNSW-Debug"), debugObj(nullptr) { }
+	GraphDebugWrapper::GraphDebugWrapper(const HNSWConfigPtr& cfg) : GraphWrapper(cfg, "chm-HNSW-Debug"), debugObj(nullptr) {}
 
 	DebugHNSW* GraphDebugWrapper::getDebugObject() {
 		return this->debugObj;

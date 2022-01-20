@@ -27,6 +27,7 @@ namespace chm {
 		void testNearestNode(size_t lc);
 		void prepareLowerSearch();
 		LevelRange getLowerRange();
+		void testLowerSearchEntry();
 		void searchLowerLayers(size_t lc);
 		void testLowerLayerResults(size_t lc);
 		void selectOriginalNeighbors(size_t lc);

@@ -45,6 +45,7 @@ namespace chm {
 		Node getNearestNode() override;
 		void prepareLowerSearch() override;
 		LevelRange getLowerRange() override;
+		size_t getLowerSearchEntry() override;
 		void searchLowerLayers(size_t lc) override;
 		NodeVecPtr getLowerLayerResults() override;
 		void selectOriginalNeighbors(size_t lc) override;
@@ -101,6 +102,7 @@ namespace chm {
 		Node getNearestNode() override;
 		void prepareLowerSearch() override;
 		LevelRange getLowerRange() override;
+		size_t getLowerSearchEntry() override;
 		void searchLowerLayers(size_t lc) override;
 		NodeVecPtr getLowerLayerResults() override;
 		void selectOriginalNeighbors(size_t lc) override;

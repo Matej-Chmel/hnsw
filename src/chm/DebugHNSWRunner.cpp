@@ -2,12 +2,13 @@
 #include "DebugHNSWRunner.hpp"
 
 namespace chm {
-	auto TEST_LEVEL = "Last generated level";
-	auto TEST_NEAREST_NODE = "Nearest node after upper search";
-	auto TEST_LOWER_SEARCH = "Search of lower layers";
-	auto TEST_SELECT_NEIGHBORS = "Selecting neighbors";
-	auto TEST_CONNECTIONS = "Connections";
-	auto TEST_ENTRY = "Entry point";
+	constexpr auto TEST_LEVEL = "Last generated level";
+	constexpr auto TEST_NEAREST_NODE = "Nearest node after upper search";
+	constexpr auto TEST_LOWER_SEARCH_ENTRY = "Entry point of lower search";
+	constexpr auto TEST_LOWER_SEARCH = "Search of lower layers";
+	constexpr auto TEST_SELECT_NEIGHBORS = "Selecting neighbors";
+	constexpr auto TEST_CONNECTIONS = "Connections";
+	constexpr auto TEST_ENTRY = "Entry point";
 
 	void writeIdxVec(const IdxVecPtr& vec, std::ostream& stream) {
 		auto& v = *vec;
@@ -27,7 +28,7 @@ namespace chm {
 
 		for(size_t i = 0; i < len; i++) {
 			auto& node = v[i];
-			stream << "[" << i << "]: " << node.idx << ", " << node.distance << '\n';
+			stream << "[" << i << "]: " << node.idx << ", " << node.dist << '\n';
 		}
 	}
 
@@ -68,6 +69,7 @@ namespace chm {
 			this->prepareLowerSearch();
 
 			for(auto lc = range.start;; lc--) {
+				this->testLowerSearchEntry();
 				this->searchLowerLayers(lc);
 				this->testLowerLayerResults(lc);
 
@@ -164,18 +166,18 @@ namespace chm {
 		for(size_t i = 1; i < len; i++) {
 			auto actualNode = this->debugObj(i)->getNearestNode();
 
-			if(actualNode.distance != expectedNode.distance || actualNode.idx != expectedNode.idx) {
+			if(actualNode.dist != expectedNode.dist || actualNode.idx != expectedNode.idx) {
 				{
 					std::ofstream stream(this->reportLogPath());
 					this->writeReport(TEST_NEAREST_NODE, i, stream, true, lc);
 				}
 				{
 					std::ofstream stream(this->expectedLogPath());
-					stream << "Distance: " << expectedNode.distance << "\nIndex: " << expectedNode.idx << '\n';
+					stream << "Distance: " << expectedNode.dist << "\nIndex: " << expectedNode.idx << '\n';
 				}
 				{
 					std::ofstream stream(this->actualLogPath());
-					stream << "Distance: " << actualNode.distance << "\nIndex: " << actualNode.idx << '\n';
+					stream << "Distance: " << actualNode.dist << "\nIndex: " << actualNode.idx << '\n';
 				}
 				this->throwAppError(TEST_NEAREST_NODE, i);
 			}
@@ -189,6 +191,31 @@ namespace chm {
 
 	LevelRange DebugHNSWRunner::getLowerRange() {
 		return this->algos[0]->getDebugObject()->getLowerRange();
+	}
+
+	void DebugHNSWRunner::testLowerSearchEntry() {
+		auto expectedEntry = this->debugObj()->getLowerSearchEntry();
+		auto len = this->len();
+
+		for(size_t i = 1; i < len; i++) {
+			auto actualEntry = this->debugObj(i)->getLowerSearchEntry();
+
+			if(actualEntry != expectedEntry) {
+				{
+					std::ofstream stream(this->reportLogPath());
+					this->writeReport(TEST_LOWER_SEARCH_ENTRY, i, stream);
+				}
+				{
+					std::ofstream stream(this->expectedLogPath());
+					stream << "Entry index: " << expectedEntry << '\n';
+				}
+				{
+					std::ofstream stream(this->actualLogPath());
+					stream << "Entry index: " << actualEntry << '\n';
+				}
+				this->throwAppError(TEST_LOWER_SEARCH_ENTRY, i);
+			}
+		}
 	}
 
 	void DebugHNSWRunner::searchLowerLayers(size_t lc) {
@@ -230,7 +257,7 @@ namespace chm {
 				auto& actualNode = actualVec[i];
 				auto& expectedNode = expectedVec[i];
 
-				if(actualNode.distance != expectedNode.distance || actualNode.idx != expectedNode.idx)
+				if(actualNode.dist != expectedNode.dist || actualNode.idx != expectedNode.idx)
 					fail(actualRes, algoIdx);
 			}
 		}
@@ -275,7 +302,7 @@ namespace chm {
 				auto& actualNode = actualVec[i];
 				auto& expectedNode = expectedVec[i];
 
-				if(actualNode.distance != expectedNode.distance || actualNode.idx != expectedNode.idx)
+				if(actualNode.dist != expectedNode.dist || actualNode.idx != expectedNode.idx)
 					fail(actualRes, algoIdx);
 			}
 		}

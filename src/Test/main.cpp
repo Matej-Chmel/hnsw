@@ -1,7 +1,7 @@
 #include "Runner.hpp"
 
 constexpr size_t EF_CONSTRUCTION = 200;
-constexpr auto DEBUG_BUILD = false;
+constexpr auto DEBUG_BUILD = true;
 constexpr size_t DIM = 128;
 constexpr auto ELEMENT_MAX = 1.f;
 constexpr auto ELEMENT_MIN = 0.f;

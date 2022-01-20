@@ -44,7 +44,7 @@ namespace chm {
 		for(auto i = r.size() - 1;; i--) {
 			auto& cand = candCopy.top();
 			auto& node = r[i];
-			node.distance = cand.first;
+			node.dist = cand.first;
 			node.idx = cand.second;
 
 			candCopy.pop();
@@ -183,6 +183,10 @@ namespace chm {
 			return {0, 0, false};
 
 		return {size_t(std::min(this->local.curlevel, this->local.maxlevelcopy)), 0, true};
+	}
+
+	size_t DebugHnswlib::getLowerSearchEntry() {
+		return this->local.currObj;
 	}
 
 	void DebugHnswlib::searchLowerLayers(size_t level) {
@@ -521,6 +525,10 @@ namespace chm {
 			return {0, 0, false};
 
 		return {size_t(std::min(this->local.L, this->local.l)), 0, true};
+	}
+
+	size_t DebugBaca::getLowerSearchEntry() {
+		return size_t(this->hnsw->W_.front().node_order);
 	}
 
 	void DebugBaca::searchLowerLayers(size_t i) {

@@ -3,11 +3,11 @@
 
 namespace chm {
 	struct Node {
-		float distance;
+		float dist;
 		size_t idx;
 
 		Node();
-		Node(float distance, size_t idx);
+		Node(float dist, size_t idx);
 	};
 
 	typedef std::vector<Node> NodeVec;
@@ -15,10 +15,10 @@ namespace chm {
 
 	struct NodeComparator {
 		constexpr bool operator()(const Node& a, const Node& b) const noexcept {
-			if(a.distance == b.distance)
+			if(a.dist == b.dist)
 				return a.idx < b.idx;
 
-			return a.distance < b.distance;
+			return a.dist < b.dist;
 		}
 	};
 
@@ -39,6 +39,7 @@ namespace chm {
 		virtual Node getNearestNode() = 0;
 		virtual void prepareLowerSearch() = 0;
 		virtual LevelRange getLowerRange() = 0;
+		virtual size_t getLowerSearchEntry() = 0;
 		virtual void searchLowerLayers(size_t lc) = 0;
 		virtual NodeVecPtr getLowerLayerResults() = 0;
 		virtual void selectOriginalNeighbors(size_t lc) = 0;

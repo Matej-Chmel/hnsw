@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <random>
 #include <unordered_map>
 #include "KNNAlgo.hpp"
@@ -6,121 +7,73 @@
 namespace chm {
 	struct Config {
 		size_t dim;
-		size_t maxNodeCount;
-
 		size_t efConstruction;
 		size_t M;
 		double mL;
 		size_t Mmax;
 		size_t Mmax0;
 
-		bool useHeuristic;
-		bool extendCandidates;
-		bool keepPrunedConnections;
-
-		void calcML();
 		Config(const HNSWConfigPtr& cfg);
 	};
 
-	struct FurthestComparator {
+	struct FarComparator {
 		constexpr bool operator()(const Node& a, const Node& b) const noexcept;
 	};
 
-	class FurthestHeap : public Unique {
-		FurthestComparator cmp;
-
-	public:
-		NodeVec nodes;
-
-		void clear();
-		FurthestHeap();
-		FurthestHeap(NodeVec& ep);
-		void push(float distance, size_t nodeID);
-		Node pop();
-		Node top();
-	};
-
-	struct NearestComparator {
+	struct NearComparator {
 		constexpr bool operator()(const Node& a, const Node& b) const noexcept;
 	};
 
-	class NearestHeap : public Unique {
-		NearestComparator cmp;
-
-	public:
+	template<class Comparator>
+	class Heap {
 		NodeVec nodes;
 
+	public:
+		typedef typename NodeVec::iterator iterator;
+
+		Node& back();
+		iterator begin();
 		void clear();
-		void fillLayer(IdxVec& layer);
-		void keepNearest(size_t K);
-		NearestHeap();
-		NearestHeap(NearestHeap& other);
-		void push(float distance, size_t nodeID);
-		Node pop();
-		void remove(size_t nodeID);
-		void reserve(size_t s);
-		size_t size();
-		void swap(NearestHeap& other);
+		iterator end();
+		Heap() = default;
+		Heap(Node& ep);
+		template<class C> Heap(Heap<C>& o);
+		size_t len();
+		void push(Node& n);
+		void push(float dist, size_t idx);
+		void pop();
+		void reserve(size_t capacity);
 		Node& top();
 	};
 
-	class DynamicList : public Unique {
-	public:
-		FurthestHeap furthestHeap;
-		NearestHeap nearestHeap;
-
-		void add(float distance, size_t nodeID);
-		void clear();
-		DynamicList() = default;
-		DynamicList(float distance, size_t entryID);
-		void fillResults(size_t K, IdxVec& outIDs, FloatVec& outDistances);
-		Node furthest();
-		void keepOnlyNearest();
-		void removeFurthest();
-		size_t size();
-	};
+	typedef Heap<FarComparator> FarHeap;
+	typedef Heap<NearComparator> NearHeap;
 
 	class Graph : public Unique {
 	public:
 		Config cfg;
-
-		size_t entryID;
-		size_t entryLevel;
-
-		std::unordered_map<size_t, float> distancesCache;
-		IdxVec3D layers;
-
+		IdxVec3D connections;
 		FloatVec coords;
-
+		std::unordered_map<size_t, float> distancesCache;
+		size_t entryIdx;
+		size_t entryLevel;
 		std::default_random_engine gen;
-
-		std::ostream* debugStream;
 		size_t nodeCount;
 
-		float getDistance(const float* node, const float* query, bool useCache = false, size_t nodeID = 0);
-		size_t getNewLevel();
-
-		void insert(const float* coords, size_t queryID);
-		void searchLayer(const float* query, DynamicList& W, size_t ef, size_t lc);
-		void selectNeighbors(const float* query, NearestHeap& outC, size_t M, size_t lc, bool useCache);
-		void selectNeighborsHeuristic(const float* query, NearestHeap& outC, size_t M, size_t lc, bool useCache);
-		void selectNeighborsSimple(NearestHeap& outC, size_t M);
-		void knnSearch(const float* query, size_t K, size_t ef, IdxVec& outIDs, FloatVec& outDistances);
-
-		void connect(size_t queryID, NearestHeap& neighbors, size_t lc);
-		void fillHeap(const float* query, IdxVec& eConn, NearestHeap& eNewConn);
-		void initLayers(size_t queryID, size_t level);
-
-		Graph(const Config& cfg, unsigned int seed);
-
-		void build(const FloatVec& coords);
-		void search(const FloatVec& queryCoords, size_t K, size_t ef, IdxVec2D& outIDs, FloatVec2D& outDistances);
-
-		size_t getNodeCount();
-		void printLayers(std::ostream& s);
-		void setDebugStream(std::ostream& s);
-
+		void connect(FarHeap& neighborHeap, IdxVec& resNeighbors);
+		void fillHeap(const float* query, size_t newIdx, IdxVec& eConn, FarHeap& eNewConn);
 		const float* getCoords(size_t idx);
+		float getDistance(const float* node, const float* query, bool useCache = false, size_t nodeIdx = 0);
+		IdxVec& getNeighbors(size_t idx, size_t lc);
+		size_t getNewLevel();
+		Graph(const Config& cfg, size_t maxNodeCount, unsigned int seed);
+		void initConnections(size_t queryIdx, size_t level);
+
+		void insert(const float* queryCoords, size_t queryIdx);
+		void searchUpperLayer(const float* query, Node& resEp, size_t lc);
+		void searchLowerLayer(const float* query, Node& ep, size_t ef, size_t lc, FarHeap& W);
+		void selectNeighborsHeuristic(FarHeap& outC, size_t M);
+		void knnSearch(const float* query, size_t K, size_t ef, IdxVec& resIndices, FloatVec& resDistances);
 	};
 
 	class GraphWrapper : public HNSWAlgo {
@@ -143,14 +96,14 @@ namespace chm {
 	};
 
 	struct GraphLocals {
-		float* coords;
+		FarHeap candidates;
+		Node ep;
 		size_t L;
 		size_t l;
 		size_t layerMmax;
-		size_t queryID;
+		float* queryCoords;
+		size_t queryIdx;
 		bool isFirstNode;
-		NearestHeap neighbors;
-		DynamicList W;
 	};
 
 	class DebugGraph : public DebugHNSW {
@@ -160,23 +113,24 @@ namespace chm {
 	public:
 		DebugGraph(Graph* hnsw);
 
-		void startInsert(float* coords, size_t idx);
-		size_t getLatestLevel();
-		void prepareUpperSearch();
-		LevelRange getUpperRange();
-		void searchUpperLayers(size_t lc);
-		Node getNearestNode();
-		void prepareLowerSearch();
-		LevelRange getLowerRange();
-		void searchLowerLayers(size_t lc);
-		NodeVecPtr getLowerLayerResults();
-		void selectOriginalNeighbors(size_t lc);
-		NodeVecPtr getOriginalNeighbors();
-		void connect(size_t lc);
-		IdxVecPtr getNeighborsForNode(size_t nodeIdx, size_t lc);
-		void prepareNextLayer(size_t lc);
-		void setupEnterPoint();
-		size_t getEnterPoint();
+		void startInsert(float* coords, size_t idx) override;
+		size_t getLatestLevel() override;
+		void prepareUpperSearch() override;
+		LevelRange getUpperRange() override;
+		void searchUpperLayers(size_t lc) override;
+		Node getNearestNode() override;
+		void prepareLowerSearch() override;
+		LevelRange getLowerRange() override;
+		size_t getLowerSearchEntry() override;
+		void searchLowerLayers(size_t lc) override;
+		NodeVecPtr getLowerLayerResults() override;
+		void selectOriginalNeighbors(size_t lc) override;
+		NodeVecPtr getOriginalNeighbors() override;
+		void connect(size_t lc) override;
+		IdxVecPtr getNeighborsForNode(size_t nodeIdx, size_t lc) override;
+		void prepareNextLayer(size_t lc) override;
+		void setupEnterPoint() override;
+		size_t getEnterPoint() override;
 	};
 
 	class GraphDebugWrapper : public GraphWrapper {
@@ -191,4 +145,80 @@ namespace chm {
 		DebugHNSW* getDebugObject() override;
 		void init() override;
 	};
+
+	template<class Comparator>
+	inline Node& Heap<Comparator>::back() {
+		return this->nodes.back();
+	}
+
+	template<class Comparator>
+	inline typename Heap<Comparator>::iterator Heap<Comparator>::begin() {
+		return this->nodes.begin();
+	}
+
+	template<class Comparator>
+	inline void Heap<Comparator>::clear() {
+		this->nodes.clear();
+	}
+
+	template<class Comparator>
+	inline typename Heap<Comparator>::iterator Heap<Comparator>::end() {
+		return this->nodes.end();
+	}
+
+	template<class Comparator>
+	inline Heap<Comparator>::Heap(Node& ep) : nodes{ep} {}
+
+	template<class Comparator>
+	template<class C>
+	inline Heap<Comparator>::Heap(Heap<C>& o) {
+		const auto len = o.len();
+		this->reserve(len);
+
+		if(len < 2)
+			this->push(o.top());
+		else {
+			const auto shortLen = len - 2;
+
+			for(size_t i = 0; i < shortLen; i++) {
+				this->push(o.top());
+				o.pop();
+			}
+
+			this->push(o.top());
+			this->push(o.back());
+		}
+	}
+
+	template<class Comparator>
+	inline size_t Heap<Comparator>::len() {
+		return this->nodes.size();
+	}
+
+	template<class Comparator>
+	inline void Heap<Comparator>::push(Node& n) {
+		this->push(n.dist, n.idx);
+	}
+
+	template<class Comparator>
+	inline void Heap<Comparator>::push(float dist, size_t idx) {
+		this->nodes.emplace_back(dist, idx);
+		std::push_heap(this->begin(), this->end(), Comparator());
+	}
+
+	template<class Comparator>
+	inline void Heap<Comparator>::pop() {
+		std::pop_heap(this->begin(), this->end(), Comparator());
+		this->nodes.pop_back();
+	}
+
+	template<class Comparator>
+	inline void Heap<Comparator>::reserve(size_t capacity) {
+		this->nodes.reserve(capacity);
+	}
+
+	template<class Comparator>
+	inline Node& Heap<Comparator>::top() {
+		return this->nodes.front();
+	}
 }
