@@ -15,7 +15,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="hnsw.hpp">
+    <ClInclude Include="Heap.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Hnsw.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
