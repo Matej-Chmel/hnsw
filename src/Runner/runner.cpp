@@ -1,4 +1,4 @@
-#include "chm/chmHnsw.hpp"
+#include "chm/Hnsw.hpp"
 #include "runner.hpp"
 
 namespace chm {
