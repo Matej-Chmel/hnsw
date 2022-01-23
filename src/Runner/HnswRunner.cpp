@@ -1,7 +1,8 @@
 #include "HnswRunner.hpp"
 
 namespace chm {
-	void printElapsedMS(const std::string& title, const LL elapsedMS, std::ostream& s) {
+	template<typename T>
+	void printElapsedMS(const std::string& title, const T elapsedMS, std::ostream& s) {
 		s << title << " time: " << elapsedMS << " ms\n";
 	}
 
@@ -52,4 +53,11 @@ namespace chm {
 	}
 
 	Timer::Timer() : from{} {}
+
+	IdxVec3DPtr sortedInPlace(const IdxVec3DPtr& conn) {
+		for(auto& nodeLayers : *conn)
+			for(auto& layer : nodeLayers)
+				std::sort(layer.begin(), layer.end());
+		return conn;
+	}
 }

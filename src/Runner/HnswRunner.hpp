@@ -136,6 +136,8 @@ namespace chm {
 		RunResPtr run();
 	};
 
+	IdxVec3DPtr sortedInPlace(const IdxVec3DPtr& conn);
+
 	class Timer : public Unique {
 		chr::system_clock::time_point from;
 
@@ -311,7 +313,7 @@ namespace chm {
 		}
 
 		res.calcStats();
-		return hnsw->getConnections();
+		return sortedInPlace(hnsw->getConnections());
 	}
 
 	template<typename Coord>

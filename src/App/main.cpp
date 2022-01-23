@@ -1,7 +1,7 @@
 #include "Runner/HnswRunner.hpp"
 
 constexpr size_t DIM = 128;
-constexpr size_t NODE_COUNT = 6000;
+constexpr size_t NODE_COUNT = 35000;
 constexpr size_t SEED = 100;
 
 int main() {
