@@ -18,6 +18,15 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="HnswRunner.hpp" />
+    <ClInclude Include="ProgressBar.hpp" />
+    <ClInclude Include="templatedHnswlib.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="HnswRunner.cpp" />
+    <ClCompile Include="ProgressBar.cpp" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
@@ -146,12 +155,6 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClInclude Include="runner.hpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="runner.cpp" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

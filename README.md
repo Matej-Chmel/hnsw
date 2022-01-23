@@ -1,5 +1,5 @@
 # Custom HNSW implementation
-This is my implementation of the Hiearchical Navigable Small World (HNSW) graph originally presented by Malkov, Yu A. and D. A. Yashunin.
+This is my implementation of the Hierarchical Navigable Small World (HNSW) graph originally presented by Malkov, Yu A. and D. A. Yashunin.
 
 Their original implementation can be found at [nmslib/hnswlib](https://github.com/nmslib/hnswlib).
 

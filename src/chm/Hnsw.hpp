@@ -20,18 +20,24 @@ namespace chm {
 	};
 
 	template<typename Coord, typename Idx>
-	struct FarComparator {
+	struct FarCmp {
 		using Node = Node<Coord, Idx>;
 
 		constexpr bool operator()(const Node& a, const Node& b) const noexcept;
 	};
 
 	template<typename Coord, typename Idx>
-	struct NearComparator {
+	struct NearCmp {
 		using Node = Node<Coord, Idx>;
 
 		constexpr bool operator()(const Node& a, const Node& b) const noexcept;
 	};
+
+	template<typename T>
+	using ConstIter = typename std::vector<T>::const_iterator;
+
+	template<typename T>
+	using Iter = typename std::vector<T>::iterator;
 
 	class Unique {
 	protected:
@@ -48,24 +54,18 @@ namespace chm {
 	class Heap : public Unique {
 	public:
 		using Node = Node<Coord, Idx>;
-		using IdxVec = std::vector<Idx>;
 
 	private:
-		using NodeVec = std::vector<Node>;
-		typedef typename NodeVec::iterator iterator;
+		std::vector<Node> nodes;
 
-		NodeVec nodes;
-
-		iterator begin();
-		iterator end();
+		Iter<Node> begin();
+		Iter<Node> end();
 
 	public:
-		typedef typename NodeVec::const_iterator const_iterator;
-
-		const_iterator begin() const noexcept;
+		ConstIter<Node> begin() const noexcept;
 		void clear();
-		const_iterator end() const noexcept;
-		void extractTo(IdxVec& v);
+		ConstIter<Node> end() const noexcept;
+		void extractTo(std::vector<Idx>& v);
 		Heap() = default;
 		Heap(const Node& ep);
 		template<class C> Heap(Heap<Coord, Idx, C>& o);
@@ -78,33 +78,28 @@ namespace chm {
 	};
 
 	template<typename Coord, typename Idx>
-	using FarHeap = Heap<Coord, Idx, FarComparator<Coord, Idx>>;
+	using FarHeap = Heap<Coord, Idx, FarCmp<Coord, Idx>>;
 
 	template<typename Coord, typename Idx>
-	using NearHeap = Heap<Coord, Idx, NearComparator<Coord, Idx>>;
+	using NearHeap = Heap<Coord, Idx, NearCmp<Coord, Idx>>;
 
-	using IdxVec = std::vector<size_t>;
-	using IdxVec3D = std::vector<std::vector<IdxVec>>;
+	using IdxVec3D = std::vector<std::vector<std::vector<size_t>>>;
 	using IdxVec3DPtr = std::shared_ptr<IdxVec3D>;
 
 	template<typename Coord>
-	using ConstIter = typename std::vector<Coord>::const_iterator;
-
-	template<typename Coord>
-	struct AbstractHnsw : public Unique {
-		using CoordVec = std::vector<Coord>;
-		using CoordConstIter = ConstIter<Coord>;
-
-		virtual ~AbstractHnsw() = default;
+	struct IHnsw : public Unique {
+		virtual ~IHnsw() = default;
 		virtual IdxVec3DPtr getConnections() const = 0;
-		virtual void insert(const CoordConstIter& query) = 0;
-		virtual void knnSearch(const CoordConstIter& query, const size_t K, const size_t ef, IdxVec& resIndices, CoordVec& resDistances) = 0;
+		virtual void insert(const ConstIter<Coord>& query) = 0;
+		virtual void knnSearch(
+			const ConstIter<Coord>& query, const size_t K, const size_t ef, std::vector<size_t>& resIndices, std::vector<Coord>& resDistances
+		) = 0;
 	};
 
 	template<typename Coord>
-	using AbstractHnswPtr = std::shared_ptr<AbstractHnsw<Coord>>;
+	using IHnswPtr = std::shared_ptr<IHnsw<Coord>>;
 
-	struct HnswConfig : public Unique {
+	struct HnswCfg : public Unique {
 		const size_t dim;
 		const size_t efConstruction;
 		const size_t M;
@@ -112,12 +107,12 @@ namespace chm {
 		const unsigned int seed;
 		const bool useEuclid;
 
-		HnswConfig(
+		HnswCfg(
 			const size_t dim, const size_t efConstruction, const size_t M, const size_t maxNodeCount, const unsigned int seed, const bool useEuclid
 		);
 	};
 
-	using HnswConfigPtr = std::shared_ptr<HnswConfig>;
+	using HnswCfgPtr = std::shared_ptr<HnswCfg>;
 
 	#ifdef CHM_HNSW_INTERMEDIATE
 
@@ -127,21 +122,19 @@ namespace chm {
 	#endif
 
 	template<typename Coord, typename Idx, bool useEuclid>
-	class Hnsw : public AbstractHnsw<Coord> {
+	class Hnsw : public IHnsw<Coord> {
 		#ifdef CHM_HNSW_INTERMEDIATE
 
-		friend HnswIntermediate;
+		friend HnswIntermediate<Coord, Idx, useEuclid>;
 
 		#endif
 
-		using CoordVec = typename AbstractHnsw<Coord>::CoordVec;
-		using CoordConstIter = typename AbstractHnsw<Coord>::CoordConstIter;
 		using FarHeap = FarHeap<Coord, Idx>;
 		using IdxVec = std::vector<Idx>;
 		using NearHeap = NearHeap<Coord, Idx>;
 		using Node = Node<Coord, Idx>;
 
-		CoordVec coords;
+		std::vector<Coord> coords;
 		std::vector<std::vector<IdxVec>> connections;
 		size_t dim;
 		std::unordered_map<Idx, Coord> distancesCache;
@@ -154,28 +147,30 @@ namespace chm {
 		size_t Mmax0;
 		Idx nodeCount;
 
-		void fillHeap(const CoordConstIter& query, const CoordConstIter& insertedQuery, IdxVec& eConn, FarHeap& eNewConn);
-		CoordConstIter getCoords(const Idx idx) const;
-		Coord getDistance(const CoordConstIter& node, const CoordConstIter& query, const bool useCache = false, const Idx nodeIdx = 0);
+		void fillHeap(const ConstIter<Coord>& query, const ConstIter<Coord>& insertedQuery, IdxVec& eConn, FarHeap& eNewConn);
+		ConstIter<Coord> getCoords(const Idx idx) const;
+		Coord getDistance(const ConstIter<Coord>& node, const ConstIter<Coord>& query, const bool useCache = false, const Idx nodeIdx = 0);
 		IdxVec& getNeighbors(const Idx idx, const size_t lc);
 		size_t getNewLevel();
 		void initConnections(const Idx idx, const size_t level);
-		void searchLowerLayer(const CoordConstIter& query, Node& ep, const size_t ef, const size_t lc, FarHeap& W);
-		void searchUpperLayer(const CoordConstIter& query, Node& resEp, const size_t lc);
+		void searchLowerLayer(const ConstIter<Coord>& query, Node& ep, const size_t ef, const size_t lc, FarHeap& W);
+		void searchUpperLayer(const ConstIter<Coord>& query, Node& resEp, const size_t lc);
 		void selectNeighborsHeuristic(FarHeap& outC, const size_t M);
 
 	public:
 		IdxVec3DPtr getConnections() const override;
-		Hnsw(const HnswConfigPtr& cfg);
-		void insert(const CoordConstIter& query) override;
-		void knnSearch(const CoordConstIter& query, const size_t K, const size_t ef, chm::IdxVec& resIndices, CoordVec& resDistances) override;
+		Hnsw(const HnswCfgPtr& cfg);
+		void insert(const ConstIter<Coord>& query) override;
+		void knnSearch(
+			const ConstIter<Coord>& query, const size_t K, const size_t ef, std::vector<size_t>& resIndices, std::vector<Coord>& resDistances
+		) override;
 	};
 
 	template<typename Coord>
-	AbstractHnswPtr<Coord> createHnsw(const HnswConfigPtr& cfg);
+	IHnswPtr<Coord> createHnsw(const HnswCfgPtr& cfg);
 
 	template<typename Coord, bool useEuclid>
-	AbstractHnswPtr<Coord> createHnsw(const HnswConfigPtr& cfg);
+	IHnswPtr<Coord> createHnsw(const HnswCfgPtr& cfg);
 
 	template<typename Coord>
 	Coord euclideanDistance(const ConstIter<Coord>& node, const ConstIter<Coord>& query, const size_t dim);
@@ -193,27 +188,27 @@ namespace chm {
 	inline Node<Coord, Idx>::Node(Coord dist, Idx idx) : dist(dist), idx(idx) {}
 
 	template<typename Coord, typename Idx>
-	inline constexpr bool FarComparator<Coord, Idx>::operator()(const Node& a, const Node& b) const noexcept {
+	inline constexpr bool FarCmp<Coord, Idx>::operator()(const Node& a, const Node& b) const noexcept {
 		return a.dist < b.dist;
 	}
 
 	template<typename Coord, typename Idx>
-	inline constexpr bool NearComparator<Coord, Idx>::operator()(const Node& a, const Node& b) const noexcept {
+	inline constexpr bool NearCmp<Coord, Idx>::operator()(const Node& a, const Node& b) const noexcept {
 		return a.dist > b.dist;
 	}
 
 	template<typename Coord, typename Idx, class Comparator>
-	inline typename Heap<Coord, Idx, Comparator>::iterator Heap<Coord, Idx, Comparator>::begin() {
+	inline Iter<Node<Coord, Idx>> Heap<Coord, Idx, Comparator>::begin() {
 		return this->nodes.begin();
 	}
 
 	template<typename Coord, typename Idx, class Comparator>
-	inline typename Heap<Coord, Idx, Comparator>::iterator Heap<Coord, Idx, Comparator>::end() {
+	inline Iter<Node<Coord, Idx>> Heap<Coord, Idx, Comparator>::end() {
 		return this->nodes.end();
 	}
 
 	template<typename Coord, typename Idx, class Comparator>
-	inline typename Heap<Coord, Idx, Comparator>::const_iterator Heap<Coord, Idx, Comparator>::begin() const noexcept {
+	inline ConstIter<Node<Coord, Idx>> Heap<Coord, Idx, Comparator>::begin() const noexcept {
 		return this->nodes.begin();
 	}
 
@@ -223,12 +218,12 @@ namespace chm {
 	}
 
 	template<typename Coord, typename Idx, class Comparator>
-	inline typename Heap<Coord, Idx, Comparator>::const_iterator Heap<Coord, Idx, Comparator>::end() const noexcept {
+	inline ConstIter<Node<Coord, Idx>> Heap<Coord, Idx, Comparator>::end() const noexcept {
 		return this->nodes.end();
 	}
 
 	template<typename Coord, typename Idx, class Comparator>
-	inline void Heap<Coord, Idx, Comparator>::extractTo(IdxVec& v) {
+	inline void Heap<Coord, Idx, Comparator>::extractTo(std::vector<Idx>& v) {
 		v.clear();
 		v.reserve(this->len());
 
@@ -288,13 +283,13 @@ namespace chm {
 		return this->nodes.front();
 	}
 
-	HnswConfig::HnswConfig(
+	inline HnswCfg::HnswCfg(
 		const size_t dim, const size_t efConstruction, const size_t M, const size_t maxNodeCount, const unsigned int seed, const bool useEuclid
 	) : dim(dim), efConstruction(efConstruction), M(M), maxNodeCount(maxNodeCount), seed(seed), useEuclid(useEuclid) {}
 
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline void Hnsw<Coord, Idx, useEuclid>::fillHeap(
-		const CoordConstIter& query, const CoordConstIter& insertedQuery, IdxVec& eConn, FarHeap& eNewConn
+		const ConstIter<Coord>& query, const ConstIter<Coord>& insertedQuery, IdxVec& eConn, FarHeap& eNewConn
 	) {
 		eNewConn.clear();
 		eNewConn.reserve(eConn.size());
@@ -305,13 +300,13 @@ namespace chm {
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
-	inline typename Hnsw<Coord, Idx, useEuclid>::CoordConstIter Hnsw<Coord, Idx, useEuclid>::getCoords(const Idx idx) const {
+	inline ConstIter<Coord> Hnsw<Coord, Idx, useEuclid>::getCoords(const Idx idx) const {
 		return this->coords.cbegin() + idx * this->dim;
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline Coord Hnsw<Coord, Idx, useEuclid>::getDistance(
-		const CoordConstIter& node, const CoordConstIter& query, const bool useCache, const Idx nodeIdx
+		const ConstIter<Coord>& node, const ConstIter<Coord>& query, const bool useCache, const Idx nodeIdx
 	) {
 		if(useCache) {
 			auto iter = this->distancesCache.find(nodeIdx);
@@ -353,7 +348,7 @@ namespace chm {
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
-	inline void Hnsw<Coord, Idx, useEuclid>::searchLowerLayer(const CoordConstIter& query, Node& ep, const size_t ef, const size_t lc, FarHeap& W) {
+	inline void Hnsw<Coord, Idx, useEuclid>::searchLowerLayer(const ConstIter<Coord>& query, Node& ep, const size_t ef, const size_t lc, FarHeap& W) {
 		NearHeap C{ep};
 		std::unordered_set<Idx> v{ep.idx};
 		W.push(ep);
@@ -399,7 +394,7 @@ namespace chm {
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
-	inline void Hnsw<Coord, Idx, useEuclid>::searchUpperLayer(const CoordConstIter& query, Node& resEp, const size_t lc) {
+	inline void Hnsw<Coord, Idx, useEuclid>::searchUpperLayer(const ConstIter<Coord>& query, Node& resEp, const size_t lc) {
 		size_t prevIdx{};
 
 		do {
@@ -474,7 +469,7 @@ namespace chm {
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
-	inline Hnsw<Coord, Idx, useEuclid>::Hnsw(const HnswConfigPtr& cfg)
+	inline Hnsw<Coord, Idx, useEuclid>::Hnsw(const HnswCfgPtr& cfg)
 		: dim(cfg->dim), efConstruction(cfg->efConstruction), entryIdx(0), entryLevel(0),
 		M(cfg->M), mL(1.0 / std::log(1.0 * this->M)), Mmax0(this->M * 2), nodeCount(0) {
 
@@ -484,7 +479,7 @@ namespace chm {
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
-	inline void Hnsw<Coord, Idx, useEuclid>::insert(const CoordConstIter& query) {
+	inline void Hnsw<Coord, Idx, useEuclid>::insert(const ConstIter<Coord>& query) {
 		std::copy(query, query + this->dim, this->coords.begin() + this->nodeCount * this->dim);
 
 		if(!this->nodeCount) {
@@ -543,7 +538,7 @@ namespace chm {
 
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline void Hnsw<Coord, Idx, useEuclid>::knnSearch(
-		const CoordConstIter& query, const size_t K, const size_t ef, chm::IdxVec& resIndices, CoordVec& resDistances
+		const ConstIter<Coord>& query, const size_t K, const size_t ef, std::vector<size_t>& resIndices, std::vector<Coord>& resDistances
 	) {
 		this->distancesCache.clear();
 
@@ -579,14 +574,14 @@ namespace chm {
 	}
 
 	template<typename Coord>
-	AbstractHnswPtr<Coord> createHnsw(const HnswConfigPtr& cfg) {
+	IHnswPtr<Coord> createHnsw(const HnswCfgPtr& cfg) {
 		if(cfg->useEuclid)
 			return createHnsw<Coord, true>(cfg);
 		return createHnsw<Coord, false>(cfg);
 	}
 
 	template<typename Coord, bool useEuclid>
-	AbstractHnswPtr<Coord> createHnsw(const HnswConfigPtr& cfg) {
+	IHnswPtr<Coord> createHnsw(const HnswCfgPtr& cfg) {
 		if(isWideEnough<unsigned short>(cfg->maxNodeCount))
 			return std::make_shared<Hnsw<Coord, unsigned short, useEuclid>>(cfg);
 		if(isWideEnough<unsigned int>(cfg->maxNodeCount))
