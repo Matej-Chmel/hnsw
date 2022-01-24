@@ -28,5 +28,5 @@ namespace chm {
 		void update();
 	};
 
-	void streamTime(std::ostream& s, const LL seconds);
+	void padTimeNum(std::ostream& s, const LL num, const size_t places = 2);
 }

@@ -409,7 +409,7 @@ namespace chm {
 
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline VecPtr<size_t> HnswInterImpl<Coord, Idx, useEuclid>::getNeighborsForNode(const size_t nodeIdx, const size_t lc) const {
-		const auto& neighbors = this->hnsw->getNeighbors(nodeIdx, lc);
+		const auto& neighbors = this->hnsw->getNeighbors(Idx(nodeIdx), Idx(lc));
 		auto res = std::make_shared<std::vector<size_t>>();
 		auto& r = *res;
 

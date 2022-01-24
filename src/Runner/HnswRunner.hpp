@@ -71,6 +71,8 @@ namespace chm {
 		UPPER_SEARCH
 	};
 
+	const char* const str(const InterTest t);
+
 	template<typename Coord>
 	struct InterErr : public Unique {
 		const size_t insertedIdx;
@@ -83,6 +85,8 @@ namespace chm {
 			const size_t insertedIdx, const BigNodeVecPtr<Coord>& refNodes, const BigNodeVecPtr<Coord>& subNodes,
 			const size_t lc, const InterTest test
 		);
+
+		void write(const fs::path& outDir) const;
 	};
 
 	template<typename Coord>
@@ -109,6 +113,7 @@ namespace chm {
 		void print(std::ostream& s) const;
 		RunRes(const size_t nodeCount);
 		void runTests(const size_t nodeCount);
+		void write(const fs::path& outDir) const;
 	};
 
 	template<typename Coord>
@@ -221,6 +226,14 @@ namespace chm {
 
 	void printTestRes(const std::string& title, const bool passed, std::ostream& s);
 	IdxVec3DPtr sortedInPlace(const IdxVec3DPtr& conn);
+	void writeConn(const IdxVec3DPtr& conn, std::ostream& stream);
+	void writeConn(const IdxVec3DPtr& conn, const fs::path& path);
+
+	template<typename Coord>
+	void writeVec(const BigNodeVecPtr<Coord>& vec, std::ostream& stream);
+
+	template<typename Coord>
+	void writeVec(const BigNodeVecPtr<Coord>& vec, const fs::path& path);
 
 	class Timer : public Unique {
 		chr::system_clock::time_point from;
@@ -268,7 +281,7 @@ namespace chm {
 	}
 
 	template<typename Coord>
-	inline RndCoords<Coord>::RndCoords(const size_t count, const size_t dim, const Coord min, const Coord max, const unsigned int seedd)
+	inline RndCoords<Coord>::RndCoords(const size_t count, const size_t dim, const Coord min, const Coord max, const unsigned int seed)
 		: count(count), dim(dim), min(min), max(max), seed(seed) {}
 
 	template<typename Coord>
@@ -364,11 +377,21 @@ namespace chm {
 	) : insertedIdx(insertedIdx), lc(lc), refNodes(refNodes), subNodes(subNodes), test(test) {}
 
 	template<typename Coord>
+	inline void InterErr<Coord>::write(const fs::path& outDir) const {
+		writeVec(this->refNodes, outDir / "expected.log");
+		writeVec(this->subNodes, outDir / "actual.log");
+
+		std::ofstream s(outDir / "report.log");
+		s << "Node: " << this->insertedIdx << '\n' << "Test: " << str(this->test) << ".\n" << "Layer: " << this->lc << '\n';
+	}
+
+	template<typename Coord>
 	inline void RunRes<Coord>::print(std::ostream& s) const {
 		printTestRes("Node count", this->nodeCountPassed, s);
 		printTestRes("Levels", this->levelsPassed, s);
 		printTestRes("Neighbors lengths", this->neighborLengthsPassed, s);
 		printTestRes("Neighbors indices", this->neighborIndicesPassed, s);
+		printTestRes("Intermediate", !this->interErr, s);
 		this->refBuild.print("Reference algorithm", s);
 		this->subBuild.print("Subject algorithm", s);
 	}
@@ -444,6 +467,22 @@ namespace chm {
 	}
 
 	template<typename Coord>
+	inline void RunRes<Coord>::write(const fs::path& outDir) const {
+		for(const auto& entry : fs::directory_iterator(outDir))
+			if(entry.is_regular_file())
+				fs::remove(entry.path());
+
+		writeConn(this->refConn, outDir / "refConn.log");
+		writeConn(this->subConn, outDir / "subConn.log");
+
+		if(this->interErr)
+			this->interErr->write(outDir);
+
+		std::ofstream s(outDir / "run.log");
+		this->print(s);
+	}
+
+	template<typename Coord>
 	inline IdxVec3DPtr HnswRunner<Coord>::build(const HnswTypePtr& type, BuildTimeRes& res) {
 		Timer timer{};
 
@@ -451,7 +490,8 @@ namespace chm {
 		auto hnsw = createHnsw<Coord>(this->algoCfg, type);
 		res.initMS = timer.stopMS();
 
-		const auto& coords = *this->coords->get();
+		const auto coordsPtr = this->coords->get();
+		const auto& coords = *coordsPtr;
 		const auto len = this->getNodeCount();
 
 		ProgressBar bar("Inserting elements.", len, 32);
@@ -482,7 +522,7 @@ namespace chm {
 	inline RunResPtr<Coord> HnswRunner<Coord>::run() {
 		auto res = std::make_shared<RunRes<Coord>>(this->getNodeCount());
 		res->refConn = this->build(this->runCfg->refType, res->refBuild);
-		res->subConn = this->build(this->runCfg->refType, res->subBuild);
+		res->subConn = this->build(this->runCfg->subType, res->subBuild);
 		res->runTests(this->getNodeCount());
 		return res;
 	}
@@ -494,6 +534,25 @@ namespace chm {
 		if(isIntermediate)
 			return std::make_shared<HnswInterRunner<Coord>>(algoCfg, coords, runCfg);
 		return std::make_shared<HnswRunner<Coord>>(algoCfg, coords, runCfg);
+	}
+
+	template<typename Coord>
+	void writeVec(const BigNodeVecPtr<Coord>& vec, std::ostream& stream) {
+		const auto& v = *vec;
+		const auto len = v.size();
+
+		stream << "[Length " << len << "]\n\n";
+
+		for(size_t i = 0; i < len; i++) {
+			const auto& node = v[i];
+			stream << "[" << i << "]: " << node.idx << ", " << node.dist << '\n';
+		}
+	}
+
+	template<typename Coord>
+	void writeVec(const BigNodeVecPtr<Coord>& vec, const fs::path& path) {
+		std::ofstream s(path);
+		writeVec(vec, s);
 	}
 
 	template<typename Coord>
@@ -781,11 +840,12 @@ namespace chm {
 
 	template<typename Coord>
 	inline HnswInterRunner<Coord>::HnswInterRunner(const HnswCfgPtr& algoCfg, const ICoordsPtr<Coord>& coords, const HnswRunCfgPtr& runCfg)
-		: HnswRunner<Coord>(algoCfg, coords, runCfg), err(nullptr), ref(nullptr), refTime(0), sub(nullptr), subTime(0) {}
+		: HnswRunner<Coord>(algoCfg, coords, runCfg), curIdx(0), err(nullptr), ref(nullptr), refTime(0), sub(nullptr), subTime(0) {}
 
 	template<typename Coord>
 	inline RunResPtr<Coord> HnswInterRunner<Coord>::run() {
-		const auto& coords = *this->coords->get();
+		const auto coordsPtr = this->coords->get();
+		const auto& coords = *coordsPtr;
 		const auto len = this->getNodeCount();
 		auto res = std::make_shared<RunRes<Coord>>(len);
 		Timer timer{};

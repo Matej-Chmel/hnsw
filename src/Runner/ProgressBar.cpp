@@ -4,6 +4,12 @@
 #include "ProgressBar.hpp"
 
 namespace chm {
+	void streamTime(std::ostream& s, const LL seconds) {
+		padTimeNum(s, seconds / 60LL);
+		s << ':';
+		padTimeNum(s, seconds % 60LL);
+	}
+
 	LL ProgressBar::diffInSeconds() {
 		return chr::duration_cast<chr::seconds>(chr::system_clock::now() - this->start).count();
 	}
@@ -68,7 +74,7 @@ namespace chm {
 		}
 	}
 
-	void streamTime(std::ostream& s, const LL seconds) {
-		s << std::setfill('0') << std::setw(2) << seconds / 60 << ':' << std::setfill('0') << std::setw(2) << seconds % 60;
+	void padTimeNum(std::ostream& s, const LL num, const size_t places) {
+		s << std::setfill('0') << std::setw(places) << num;
 	}
 }
