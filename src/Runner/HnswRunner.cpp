@@ -21,28 +21,14 @@ namespace chm {
 		this->totalMS = this->initMS + sumInsertMS;
 	}
 
-	void BuildTimeRes::print(const std::string& name, std::ostream& s) {
+	void BuildTimeRes::print(const std::string& name, std::ostream& s) const {
 		s << "\n[" << name << "]\n";
 		printElapsedMS("Average insert", this->avgInsertMS, s);
 		printElapsedMS("Initialization", this->initMS, s);
 		printElapsedMS("Total build", this->totalMS, s);
 	}
 
-	void RunRes::print(std::ostream& s) {
-		printTestRes("Node count", this->nodeCountPassed, s);
-		printTestRes("Levels", this->levelsPassed, s);
-		printTestRes("Neighbors lengths", this->neighborLengthsPassed, s);
-		printTestRes("Neighbors indices", this->neighborIndicesPassed, s);
-		this->refBuild.print("Reference algorithm", s);
-		this->subBuild.print("Subject algorithm", s);
-	}
-
-	RunRes::RunRes(const size_t nodeCount)
-		: levelsPassed(false), neighborIndicesPassed(false), neighborLengthsPassed(false), nodeCountPassed(false),
-		refBuild(nodeCount), subBuild(nodeCount) {
-	}
-
-	HnswRunCfg::HnswRunCfg(const HnswKind refKind, const HnswKind subKind) : refKind(refKind), subKind(subKind) {}
+	HnswRunCfg::HnswRunCfg(const HnswTypePtr& refType, const HnswTypePtr& subType) : refType(refType), subType(subType) {}
 
 	void Timer::start() {
 		this->from = chr::system_clock::now();
@@ -60,4 +46,6 @@ namespace chm {
 				std::sort(layer.begin(), layer.end());
 		return conn;
 	}
+
+	HnswType::HnswType(const bool isIntermediate, const HnswKind kind) : isIntermediate(isIntermediate), kind(kind) {}
 }

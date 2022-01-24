@@ -18,10 +18,13 @@
     <ClInclude Include="HnswRunner.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="templatedHnswlib.hpp">
+    <ClInclude Include="hnswlibTemplateSpaces.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ProgressBar.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="HnswIntermediate.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -30,6 +33,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ProgressBar.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="HnswIntermediate.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

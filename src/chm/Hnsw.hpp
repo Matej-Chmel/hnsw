@@ -117,7 +117,7 @@ namespace chm {
 	#ifdef CHM_HNSW_INTERMEDIATE
 
 	template<typename Coord, typename Idx, bool useEuclid>
-	class HnswIntermediate;
+	class HnswInterImpl;
 
 	#endif
 
@@ -125,7 +125,7 @@ namespace chm {
 	class Hnsw : public IHnsw<Coord> {
 		#ifdef CHM_HNSW_INTERMEDIATE
 
-		friend HnswIntermediate<Coord, Idx, useEuclid>;
+		friend HnswInterImpl<Coord, Idx, useEuclid>;
 
 		#endif
 

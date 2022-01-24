@@ -19,11 +19,13 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="HnswIntermediate.hpp" />
     <ClInclude Include="HnswRunner.hpp" />
     <ClInclude Include="ProgressBar.hpp" />
-    <ClInclude Include="templatedHnswlib.hpp" />
+    <ClInclude Include="hnswlibTemplateSpaces.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="HnswIntermediate.cpp" />
     <ClCompile Include="HnswRunner.cpp" />
     <ClCompile Include="ProgressBar.cpp" />
   </ItemGroup>
