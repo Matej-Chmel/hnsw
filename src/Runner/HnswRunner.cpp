@@ -43,7 +43,7 @@ namespace chm {
 		s << '[' << (passed ? "PASSED" : "FAILED") << "] " << title << " test.\n";
 	}
 
-	BuildTimeRes::BuildTimeRes(const size_t nodeCount) : avgInsertMS(0.0), initMS(0), totalMS(0) {
+	BuildTimeRes::BuildTimeRes(const size_t nodeCount) : accMS(0), avgInsertMS(0.0), initMS(0), totalMS(0) {
 		this->insertMS.reserve(nodeCount);
 	}
 
@@ -51,14 +51,17 @@ namespace chm {
 		const auto sumInsertMS = std::accumulate(this->insertMS.cbegin(), this->insertMS.cend(), LL(0));
 
 		this->avgInsertMS = double(sumInsertMS) / double(this->insertMS.size());
-		this->totalMS = this->initMS + sumInsertMS;
+		this->accMS = this->initMS + sumInsertMS;
 	}
 
-	void BuildTimeRes::print(const std::string& name, std::ostream& s) const {
+	void BuildTimeRes::print(const std::string& name, std::ostream& s, const bool isIntermediate) const {
 		s << "\n[" << name << "]\n";
 		printElapsedTime("Average insert", this->avgInsertMS, s);
 		printElapsedTime("Initialization", this->initMS, s);
-		printElapsedTime("Total build", this->totalMS, s);
+		printElapsedTime("Accumulated build", this->accMS, s);
+
+		if(!isIntermediate)
+			printElapsedTime("Total build", this->totalMS, s);
 	}
 
 	HnswRunCfg::HnswRunCfg(const HnswTypePtr& refType, const HnswTypePtr& subType) : refType(refType), subType(subType) {}

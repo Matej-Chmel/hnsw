@@ -70,6 +70,13 @@ namespace hnswlib {
         struct CompareByFirst {
             constexpr bool operator()(std::pair<dist_t, tableint> const &a,
                                       std::pair<dist_t, tableint> const &b) const noexcept {
+				#ifdef DECIDE_BY_IDX
+
+				if(a.first == b.first)
+					return a.second < b.second;
+
+				#endif
+
                 return a.first < b.first;
             }
         };

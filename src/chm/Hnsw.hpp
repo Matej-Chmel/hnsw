@@ -189,11 +189,24 @@ namespace chm {
 
 	template<typename Coord, typename Idx>
 	inline constexpr bool FarCmp<Coord, Idx>::operator()(const Node& a, const Node& b) const noexcept {
+		#ifdef DECIDE_BY_IDX
+
+		if(a.dist == b.dist)
+			return a.idx < b.idx;
+
+		#endif
 		return a.dist < b.dist;
 	}
 
 	template<typename Coord, typename Idx>
 	inline constexpr bool NearCmp<Coord, Idx>::operator()(const Node& a, const Node& b) const noexcept {
+		#ifdef DECIDE_BY_IDX
+
+		if(a.dist == b.dist)
+			return a.idx < b.idx;
+
+		#endif
+
 		return a.dist > b.dist;
 	}
 

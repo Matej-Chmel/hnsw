@@ -1,7 +1,6 @@
 #pragma once
 #include <filesystem>
 #include <fstream>
-#include <ios>
 #include <numeric>
 #include "HnswIntermediate.hpp"
 #include "ProgressBar.hpp"
@@ -40,17 +39,20 @@ namespace chm {
 
 	template<typename Coord>
 	class ReadCoords : public ICoords<Coord> {
-		fs::path p;
+		const size_t count;
+		const size_t dim;
+		const fs::path p;
 
 		VecPtr<Coord> create() const override;
 
 	public:
-		ReadCoords(const fs::path& p);
+		ReadCoords(const fs::path& p, const size_t count, const size_t dim);
 	};
 
 	using LL = long long;
 
 	struct BuildTimeRes : public Unique {
+		LL accMS;
 		double avgInsertMS;
 		LL initMS;
 		std::vector<LL> insertMS;
@@ -58,7 +60,7 @@ namespace chm {
 
 		BuildTimeRes(const size_t nodeCount);
 		void calcStats();
-		void print(const std::string& name, std::ostream& s) const;
+		void print(const std::string& name, std::ostream& s, const bool isIntermediate) const;
 	};
 
 	enum class InterTest {
@@ -110,10 +112,10 @@ namespace chm {
 		BuildTimeRes subBuild;
 		IdxVec3DPtr subConn;
 
-		void print(std::ostream& s) const;
+		void print(std::ostream& s, const bool isIntermediate) const;
 		RunRes(const size_t nodeCount);
 		void runTests(const size_t nodeCount);
-		void write(const fs::path& outDir) const;
+		void write(const fs::path& outDir, const bool isIntermediate) const;
 	};
 
 	template<typename Coord>
@@ -286,20 +288,17 @@ namespace chm {
 
 	template<typename Coord>
 	inline VecPtr<Coord> ReadCoords<Coord>::create() const {
+		const auto len = this->count * this->dim;
+		auto res = std::make_shared<std::vector<Coord>>();
 		std::ifstream s(this->p);
 
-		s.seekg(0, std::ios::end);
-		const auto fileSize = s.tellg();
-		s.seekg(0, std::ios::beg);
-
-		auto res = std::make_shared<std::vector<Coord>>();
-		res->resize(fileSize / sizeof(Coord));
-		s.read(reinterpret_cast<std::ifstream::char_type*>(res->data()), fileSize);
+		res->resize(len);
+		s.read(reinterpret_cast<std::ifstream::char_type*>(res->data()), len * sizeof(Coord));
 		return res;
 	}
 
 	template<typename Coord>
-	inline ReadCoords<Coord>::ReadCoords(const fs::path& p) : p(p) {}
+	inline ReadCoords<Coord>::ReadCoords(const fs::path& p, const size_t count, const size_t dim) : count(count), dim(dim), p(p) {}
 
 	template<typename Coord>
 	IHnswIntermediatePtr<Coord> createHnswIntermediate(const HnswCfgPtr& cfg) {
@@ -386,14 +385,17 @@ namespace chm {
 	}
 
 	template<typename Coord>
-	inline void RunRes<Coord>::print(std::ostream& s) const {
+	inline void RunRes<Coord>::print(std::ostream& s, const bool isIntermediate) const {
 		printTestRes("Node count", this->nodeCountPassed, s);
 		printTestRes("Levels", this->levelsPassed, s);
 		printTestRes("Neighbors lengths", this->neighborLengthsPassed, s);
 		printTestRes("Neighbors indices", this->neighborIndicesPassed, s);
-		printTestRes("Intermediate", !this->interErr, s);
-		this->refBuild.print("Reference algorithm", s);
-		this->subBuild.print("Subject algorithm", s);
+
+		if(isIntermediate)
+			printTestRes("Intermediate", !this->interErr, s);
+
+		this->refBuild.print("Reference algorithm", s, isIntermediate);
+		this->subBuild.print("Subject algorithm", s, isIntermediate);
 	}
 
 	template<typename Coord>
@@ -467,7 +469,7 @@ namespace chm {
 	}
 
 	template<typename Coord>
-	inline void RunRes<Coord>::write(const fs::path& outDir) const {
+	inline void RunRes<Coord>::write(const fs::path& outDir, const bool isIntermediate) const {
 		for(const auto& entry : fs::directory_iterator(outDir))
 			if(entry.is_regular_file())
 				fs::remove(entry.path());
@@ -475,26 +477,26 @@ namespace chm {
 		writeConn(this->refConn, outDir / "refConn.log");
 		writeConn(this->subConn, outDir / "subConn.log");
 
-		if(this->interErr)
+		if(this->interErr && isIntermediate)
 			this->interErr->write(outDir);
 
 		std::ofstream s(outDir / "run.log");
-		this->print(s);
+		this->print(s, isIntermediate);
 	}
 
 	template<typename Coord>
 	inline IdxVec3DPtr HnswRunner<Coord>::build(const HnswTypePtr& type, BuildTimeRes& res) {
+		const auto coordsPtr = this->coords->get();
+		const auto& coords = *coordsPtr;
+		const auto len = this->getNodeCount();
+		ProgressBar bar("Inserting elements.", len, 32);
 		Timer timer{};
+		Timer totalTimer{};
+		totalTimer.start();
 
 		timer.start();
 		auto hnsw = createHnsw<Coord>(this->algoCfg, type);
 		res.initMS = timer.stopMS();
-
-		const auto coordsPtr = this->coords->get();
-		const auto& coords = *coordsPtr;
-		const auto len = this->getNodeCount();
-
-		ProgressBar bar("Inserting elements.", len, 32);
 
 		for(size_t i = 0; i < len; i++) {
 			timer.start();
@@ -505,6 +507,7 @@ namespace chm {
 			bar.update();
 		}
 
+		res.totalMS = totalTimer.stopMS();
 		res.calcStats();
 		return sortedInPlace(hnsw->getConnections());
 	}
@@ -614,7 +617,7 @@ namespace chm {
 	inline void HnswInterRunner<Coord>::setErr(
 		const BigNodeVecPtr<Coord>& actual, const BigNodeVecPtr<Coord>& expected, const size_t lc, const InterTest test
 	) {
-		this->err = std::make_shared<InterErr<Coord>>(this->curIdx, actual, expected, lc, test);
+		this->err = std::make_shared<InterErr<Coord>>(this->curIdx, expected, actual, lc, test);
 	}
 
 	template<typename Coord>
@@ -871,6 +874,7 @@ namespace chm {
 			bar.update();
 		}
 
+		res->interErr = err;
 		res->refBuild.calcStats();
 		res->refConn = sortedInPlace(this->ref->getConnections());
 		res->subBuild.calcStats();
