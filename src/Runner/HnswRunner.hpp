@@ -1,6 +1,7 @@
 #pragma once
 #include <filesystem>
 #include <fstream>
+#include <ios>
 #include <numeric>
 #include "HnswIntermediate.hpp"
 #include "ProgressBar.hpp"
@@ -290,7 +291,7 @@ namespace chm {
 	inline VecPtr<Coord> ReadCoords<Coord>::create() const {
 		const auto len = this->count * this->dim;
 		auto res = std::make_shared<std::vector<Coord>>();
-		std::ifstream s(this->p);
+		std::ifstream s(this->p, std::ios::binary);
 
 		res->resize(len);
 		s.read(reinterpret_cast<std::ifstream::char_type*>(res->data()), len * sizeof(Coord));

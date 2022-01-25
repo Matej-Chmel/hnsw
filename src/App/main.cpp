@@ -4,7 +4,7 @@
 
 constexpr size_t DIM = 128;
 constexpr auto INTERMEDIATE = false;
-constexpr size_t NODE_COUNT = 40000;
+constexpr size_t NODE_COUNT = 1000000;
 constexpr size_t SEED = 100;
 
 int main() {
@@ -16,8 +16,8 @@ int main() {
 	if(!fs::exists(outDir))
 		fs::create_directories(outDir);
 
-	const auto coords = std::make_shared<RndCoords<float>>(NODE_COUNT, DIM, 0.f, 1.f, SEED);
-	// const auto coords = std::make_shared<ReadCoords<float>>(slnDir / "datasets" / "sift1M.bin", NODE_COUNT, DIM);
+	// const auto coords = std::make_shared<RndCoords<float>>(NODE_COUNT, DIM, 0.f, 1.f, SEED);
+	const auto coords = std::make_shared<ReadCoords<float>>(slnDir / "datasets" / "sift1M.bin", NODE_COUNT, DIM);
 
 	try {
 		const auto res = createRunner<float>(
