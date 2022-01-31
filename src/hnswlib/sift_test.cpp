@@ -2,77 +2,111 @@
 #include <chrono>
 #include <filesystem>
 #include <hnswlib/hnswlib.h>
-
+#include <iomanip>
+#include <ios>
+#include <sstream>
+#include <string>
 namespace chr = std::chrono;
 namespace fs = std::filesystem;
 
-class StopW {
-	chr::steady_clock::time_point time_begin;
-
-public:
-	StopW() {
-		this->time_begin = chr::steady_clock::now();
-	}
-
-	float getElapsedTimeMicro() const {
-		const auto time_end = std::chrono::steady_clock::now();
-		return chr::duration_cast<chr::microseconds>(time_end - this->time_begin).count();
-	}
-
-	void reset() {
-		this->time_begin = chr::steady_clock::now();
-	}
-};
+constexpr std::streamsize EF_W = 8;
+constexpr std::streamsize ELAPSED_W = 36;
+constexpr std::streamsize RECALL_W = 20;
+constexpr auto USE_BRUTEFORCE = false;
 
 using PriorityQueue = std::priority_queue<std::pair<float, hnswlib::labeltype>>;
 using Answers = std::vector<PriorityQueue>;
 
-void get_gt(
-	const float* const mass, const float* const massQ, const size_t vecsize, const size_t qsize, hnswlib::L2Space& l2space,
-	const size_t vecdim, Answers& answers, const size_t k
-) {
-	hnswlib::BruteforceSearch<float> bs(&l2space, vecsize);
+class StopW {
+	chr::steady_clock::time_point timeBegin;
 
-	for(int i = 0; i < vecsize; i++)
-		bs.addPoint((void*)(mass + vecdim * i), size_t(i));
-
-	(Answers(qsize)).swap(answers);
-
-	for(int i = 0; i < qsize; i++) {
-		auto gt = bs.searchKnn(massQ + vecdim * i, 10);
-		answers[i] = gt;
+public:
+	chr::microseconds elapsedMicro() const {
+		return chr::duration_cast<chr::microseconds>(chr::steady_clock::now() - this->timeBegin);
 	}
+
+	StopW() {
+		this->timeBegin = chr::steady_clock::now();
+	}
+};
+
+template<typename T>
+long long convert(chr::microseconds& us) {
+	const auto res = chr::duration_cast<T>(us);
+	us -= chr::duration_cast<chr::microseconds>(res);
+	return res.count();
 }
 
-void get_gt(
-	const unsigned int* const massQA, const float* const massQ, const float* const mass, const size_t vecsize, const size_t qsize,
-	hnswlib::L2Space& l2space, const size_t vecdim, Answers& answers, const size_t k
+void getGt(
+	const std::vector<float>& mass, const size_t elemCount, const std::vector<float>& massQ, const size_t queryCount,
+	const size_t dim, const size_t k, hnswlib::L2Space& space, Answers& answers
 ) {
-	(Answers(qsize)).swap(answers);
+	hnswlib::BruteforceSearch<float> bs(&space, elemCount);
 
-	auto fstdistfunc_ = l2space.get_dist_func();
+	for(int i = 0; i < elemCount; i++)
+		bs.addPoint(&mass[i * dim], size_t(i));
 
-	std::cout << qsize << '\n';
+	(Answers(queryCount)).swap(answers);
 
-	for(int i = 0; i < qsize; i++) {
-		for(int j = 0; j < k; j++) {
-			auto other = fstdistfunc_(massQ + i * vecdim, mass + massQA[100 * i + j] * vecdim, l2space.get_dist_func_param());
-			answers[i].emplace(other, massQA[100 * i + j]);
+	for(int i = 0; i < queryCount; i++)
+		answers[i] = bs.searchKnn(&massQ[i * dim], k);
+}
+
+void getGt(
+	const std::vector<float>& mass, const size_t elemCount, const std::vector<float>& massQ, const size_t queryCount,
+	const std::vector<unsigned int>& massQA, const size_t dim, const size_t k, hnswlib::L2Space& space, Answers& answers
+) {
+	(Answers(queryCount)).swap(answers);
+
+	const auto fstdistfunc_ = space.get_dist_func();
+
+	std::cout << queryCount << "queries.\n";
+
+	for(size_t i = 0; i < queryCount; i++)
+		for(size_t j = 0; j < k; j++) {
+			const auto correctIdx = massQA[i * 100 + j];
+			answers[i].emplace(fstdistfunc_(&massQ[i * dim], &mass[correctIdx * dim], space.get_dist_func_param()), correctIdx);
 		}
-	}
 }
 
-float test_approx(
-	const float* const massQ, const size_t vecsize, const size_t qsize, hnswlib::HierarchicalNSW<float>& appr_alg, const size_t vecdim,
-	Answers& answers, const size_t k
+void printFill(std::ostream& s, const long long n, const size_t places = 2) {
+	s << std::setfill('0') << std::setw(places) << n;
+}
+
+void printTime(const chr::microseconds& t) {
+	std::stringstream stream;
+	chr::microseconds us = t;
+
+	stream << "[";
+	printFill(stream, convert<chr::minutes>(us));
+	stream << ':';
+	printFill(stream, convert<chr::seconds>(us));
+	stream << '.';
+	printFill(stream, convert<chr::milliseconds>(us), 3);
+	stream << '.';
+	printFill(stream, us.count(), 3);
+	stream << "] " << t.count() << " us";
+
+	std::cout << std::setw(ELAPSED_W) << stream.str();
+}
+
+void printTime(const std::string& title, const chr::microseconds& elapsed) {
+	std::cout << title;
+	printTime(elapsed);
+	std::cout << std::setw(1) << '\n';
+}
+
+float testApprox(
+	const std::vector<float>& massQ, const size_t queryCount, const size_t dim, const size_t k,
+	hnswlib::HierarchicalNSW<float>& apprAlg, Answers& answers
 ) {
 	size_t correct = 0;
 	size_t total = 0;
 
-	for(int i = 0; i < qsize; i++) {
-		auto result = appr_alg.searchKnn(massQ + vecdim * i, 10);
-		PriorityQueue gt(answers[i]);
+	for(int i = 0; i < queryCount; i++) {
 		std::unordered_set<hnswlib::labeltype> g;
+		PriorityQueue gt(answers[i]);
+		auto result = apprAlg.searchKnn(&massQ[i * dim], k);
 
 		total += gt.size();
 
@@ -88,89 +122,110 @@ float test_approx(
 		}
 	}
 
-	return 1.0f * correct / total;
+	return 1.f * correct / total;
 }
 
-int test_vs_recall(
-	const float* const massQ, const size_t vecsize, const size_t qsize, hnswlib::HierarchicalNSW<float>& appr_alg, const size_t vecdim,
-	Answers& answers, const size_t k
+void testVsRecall(
+	const std::vector<float>& massQ, const size_t queryCount, const size_t dim, const size_t k,
+	hnswlib::HierarchicalNSW<float>& apprAlg, Answers& answers
 ) {
 	std::vector<size_t> efs;
 
-	for(int i = 10; i < 30; i++)
+	for(size_t i = 10; i < 30; i++)
 		efs.push_back(i);
 
-	for(int i = 100; i < 2000; i += 100)
+	for(size_t i = 100; i < 2000; i += 100)
 		efs.push_back(i);
+
+	std::cout << std::setw(EF_W) << "EF" << std::setw(RECALL_W) << "Recall" << std::setw(ELAPSED_W) << "Total time" <<
+		std::setw(ELAPSED_W) << "Time per query" << std::setw(1) << '\n';
 
 	for(const auto& ef : efs) {
-		appr_alg.setEf(ef);
-		StopW stopw{};
+		apprAlg.setEf(ef);
+		StopW stopW{};
 
-		auto recall = test_approx(massQ, vecsize, qsize, appr_alg, vecdim, answers, k);
-		auto time_us_per_query = stopw.getElapsedTimeMicro() / qsize;
+		const auto recall = testApprox(massQ, queryCount, dim, k, apprAlg, answers);
+		const auto elapsed = stopW.elapsedMicro();
+		const auto elapsedPerQuery = chr::microseconds(elapsed / queryCount);
 
-		std::cout << ef << '\t' << recall << '\t' << time_us_per_query << " us\n";
+		std::cout << std::setw(EF_W) << ef << std::setw(RECALL_W) << recall;
+		printTime(elapsed);
+		printTime(elapsedPerQuery);
+		std::cout << std::setw(1) << '\n';
 
-		if(recall > 1.f) {
-			std::cout << recall << '\t' << time_us_per_query << " us\n";
-			return EXIT_FAILURE;
-		}
+		if(recall > 1.f)
+			throw std::runtime_error("Recall " + std::to_string(recall) + " is greater than 1.");
 	}
+}
 
-	return EXIT_SUCCESS;
+template<typename T>
+std::vector<T> read(const fs::path& datasetsDir, const std::string& filename) {
+	const auto path = datasetsDir / (filename + ".bin");
+
+	if(!fs::exists(path))
+		throw std::runtime_error("Path " + path.string() + " doesn't exist.");
+
+	std::ifstream s(path, std::ios::binary);
+
+	if(!s)
+		throw std::runtime_error("Could not open " + path.string());
+
+	s.seekg(0, std::ios::end);
+	const auto size = s.tellg();
+	s.seekg(0, std::ios::beg);
+
+	std::vector<T> res;
+	res.resize(size / sizeof(T));
+	s.read(reinterpret_cast<std::ifstream::char_type*>(res.data()), size);
+	return res;
 }
 
 int main() {
-	const auto datasetsDir = fs::path(SOLUTION_DIR) / "datasets";
-	const size_t qsize = 10000;
-	const size_t vecdim = 128;
-	const size_t vecsize = 1000000;
+	try {
+		const auto datasetsDir = fs::path(SOLUTION_DIR) / "datasets";
+		constexpr size_t DIM = 128;
+		constexpr size_t K = 10;
 
-	auto mass = new float[vecsize * vecdim];
-	auto massQ = new float[qsize * vecdim];
-	auto massQA = new unsigned int[qsize * 100];
+		const auto mass = read<float>(datasetsDir, "sift1M");
+		const auto massQ = read<float>(datasetsDir, "siftQ1M");
+		const auto massQA = read<unsigned int>(datasetsDir, "knnQA1M");
+		const auto elemCount = mass.size() / DIM;
+		const auto queryCount = massQ.size() / DIM;
 
-	{
-		std::ifstream s(datasetsDir / "sift1M.bin", std::ios::binary);
-		s.read((char*)mass, vecsize * vecdim * sizeof(float));
+		hnswlib::L2Space space(DIM);
+		hnswlib::HierarchicalNSW<float> apprAlg(&space, elemCount, 16, 200);
+
+		std::cout << "Building index.\n";
+
+		{
+			StopW stopW{};
+
+			for(int i = 0; i < elemCount; i++)
+				apprAlg.addPoint(&mass[i * DIM], size_t(i));
+
+			printTime("Index built.", stopW.elapsedMicro());
+		}
+		
+		Answers answers;
+		std::cout << "Loading " << (USE_BRUTEFORCE ? "bruteforce" : "results from file") << ".\n";
+
+		{
+			StopW stopW{};
+
+			if constexpr(USE_BRUTEFORCE)
+				getGt(mass, elemCount, massQ, queryCount, DIM, K, space, answers);
+			else
+				getGt(mass, elemCount, massQ, queryCount, massQA, DIM, K, space, answers);
+
+			printTime("Loaded.", stopW.elapsedMicro());
+		}
+
+		testVsRecall(massQ, queryCount, DIM, K, apprAlg, answers);
+		return EXIT_SUCCESS;
+
+	} catch(const std::runtime_error& e) {
+		std::cerr << "[ERROR] " << e.what() << '\n';
 	}
-	{
-		std::ifstream s(datasetsDir / "siftQ1M.bin", std::ios::binary);
-		s.read((char*)massQ, qsize * vecdim * sizeof(float));
-	}
-	{
-		std::ifstream s(datasetsDir / "knnQA1M.bin", std::ios::binary);
-		s.read((char*)massQA, qsize * 100 * sizeof(int));
-	}
 
-	hnswlib::L2Space l2space(vecdim);
-	hnswlib::HierarchicalNSW<float> appr_alg(&l2space, vecsize, 16, 200);
-
-	std::cout << "Building index\n";
-
-	StopW stopwb{};
-
-	for(int i = 0; i < 1; i++)
-		appr_alg.addPoint((void*)(mass + vecdim * i), size_t(i));
-
-	for(int i = 1; i < vecsize; i++)
-		appr_alg.addPoint((void*)(mass + vecdim * i), size_t(i));
-
-	std::cout << "Index built, time=" << stopwb.getElapsedTimeMicro() * 1e-6 << '\n';
-
-	Answers answers;
-	const size_t k = 10;
-
-	std::cout << "Loading gt\n";
-
-	get_gt(massQA, massQ, mass, vecsize, qsize, l2space, vecdim, answers, k);
-
-	std::cout << "Loaded gt\n";
-
-	for(int i = 0; i < 1; i++)
-		if(test_vs_recall(massQ, vecsize, qsize, appr_alg, vecdim, answers, k) != EXIT_SUCCESS)
-			return EXIT_FAILURE;
-
-	return EXIT_SUCCESS;
+	return EXIT_FAILURE;
 }
