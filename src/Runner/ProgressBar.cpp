@@ -11,7 +11,7 @@ namespace chm {
 	}
 
 	LL ProgressBar::diffInSeconds() {
-		return chr::duration_cast<chr::seconds>(chr::system_clock::now() - this->start).count();
+		return chr::duration_cast<chr::seconds>(chr::steady_clock::now() - this->start).count();
 	}
 
 	void ProgressBar::writeNums() {
@@ -42,7 +42,7 @@ namespace chm {
 		s << "\r[" << std::string(width, '_') << "]    0 / 0    0 %    00:00";
 		this->bar = s.str();
 		this->numsLen = this->bar.size() - this->numsIdx;
-		this->start = chr::system_clock::now();
+		this->start = chr::steady_clock::now();
 	}
 
 	void ProgressBar::update() {

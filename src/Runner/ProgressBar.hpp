@@ -16,7 +16,7 @@ namespace chm {
 		float nextUpdate;
 		size_t numsIdx;
 		size_t numsLen;
-		chr::system_clock::time_point start;
+		chr::steady_clock::time_point start;
 		float total;
 		float updateTicks;
 

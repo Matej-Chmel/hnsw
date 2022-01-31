@@ -2,23 +2,27 @@
 
 namespace chm {
 	template<typename T>
-	void printElapsedTime(const std::string& title, const T elapsedMS, std::ostream& s) {
-		s << title << " time: " << elapsedMS << " ms [";
-		padTimeNum(s, LL(elapsedMS) / 3600000LL);
-
-		auto remainder = LL(elapsedMS) % 3600000LL;
-		s << ':';
-		padTimeNum(s, remainder / 60000LL);
-
-		remainder %= 60000LL;
-		s << ':';
-		padTimeNum(s, remainder / 1000LL);
-		s << '.';
-		padTimeNum(s, remainder % 1000LL, 3);
-		s << "]\n";
+	LL convert(chr::microseconds& us) {
+		const auto res = chr::duration_cast<T>(us);
+		us -= chr::duration_cast<chr::microseconds>(res);
+		return res.count();
 	}
 
-	const char* const str(const InterTest t) {
+	void printElapsedTime(const std::string& title, const chr::microseconds& elapsed, std::ostream& s) {
+		chr::microseconds us = elapsed;
+
+		s << title << " time: [";
+		padTimeNum(s, convert<chr::minutes>(us));
+		s << ':';
+		padTimeNum(s, convert<chr::seconds>(us));
+		s << '.';
+		padTimeNum(s, convert<chr::milliseconds>(us), 3);
+		s << '.';
+		padTimeNum(s, us.count(), 3);
+		s << "] " << elapsed.count() << " us\n";
+	}
+
+	std::string str(const InterTest t) {
 		switch(t) {
 			case InterTest::ENTRY:
 				return "Graph entry point";
@@ -35,46 +39,49 @@ namespace chm {
 			case InterTest::UPPER_SEARCH:
 				return "Nearest node from upper search";
 			default:
-				return nullptr;
+				throw std::runtime_error("Unknown InterTest value.");
 		}
 	}
 
-	void printTestRes(const std::string& title, const bool passed, std::ostream& s) {
-		s << '[' << (passed ? "PASSED" : "FAILED") << "] " << title << " test.\n";
+	AccBuildTime::AccBuildTime(const size_t nodeCount) : accumulated(0), avgInsert(0), init(0) {
+		this->inserts.reserve(nodeCount);
 	}
 
-	BuildTimeRes::BuildTimeRes(const size_t nodeCount) : accMS(0), avgInsertMS(0.0), initMS(0), totalMS(0) {
-		this->insertMS.reserve(nodeCount);
+	void AccBuildTime::calcStats() {
+		const auto sum = std::accumulate(this->inserts.cbegin(), this->inserts.cend(), chr::microseconds(0));
+		this->accumulated = this->init + sum;
+		this->avgInsert = chr::microseconds(sum / this->inserts.size());
 	}
 
-	void BuildTimeRes::calcStats() {
-		const auto sumInsertMS = std::accumulate(this->insertMS.cbegin(), this->insertMS.cend(), LL(0));
-
-		this->avgInsertMS = double(sumInsertMS) / double(this->insertMS.size());
-		this->accMS = this->initMS + sumInsertMS;
-	}
-
-	void BuildTimeRes::print(const std::string& name, std::ostream& s, const bool isIntermediate) const {
+	void AccBuildTime::print(const std::string& name, std::ostream& s) const {
 		s << "\n[" << name << "]\n";
-		printElapsedTime("Average insert", this->avgInsertMS, s);
-		printElapsedTime("Initialization", this->initMS, s);
-		printElapsedTime("Accumulated build", this->accMS, s);
+		printElapsedTime("Average insert", this->avgInsert, s);
+		printElapsedTime("Initialization", this->init, s);
+		printElapsedTime("Accumulated build", this->accumulated, s);
+	}
 
-		if(!isIntermediate)
-			printElapsedTime("Total build", this->totalMS, s);
+	TotalBuildTime::TotalBuildTime(const size_t nodeCount) : AccBuildTime(nodeCount), total(0) {}
+
+	void TotalBuildTime::print(const std::string& name, std::ostream& s) const {
+		AccBuildTime::print(name, s);
+		printElapsedTime("Total build", this->total, s);
 	}
 
 	HnswRunCfg::HnswRunCfg(const HnswTypePtr& refType, const HnswTypePtr& subType) : refType(refType), subType(subType) {}
 
 	void Timer::start() {
-		this->from = chr::system_clock::now();
+		this->from = chr::steady_clock::now();
 	}
 
-	LL Timer::stopMS() {
-		return chr::duration_cast<chr::milliseconds>(chr::system_clock::now() - this->from).count();
+	chr::microseconds Timer::stop() {
+		return chr::duration_cast<chr::microseconds>(chr::steady_clock::now() - this->from);
 	}
 
 	Timer::Timer() : from{} {}
+
+	void printTestRes(const std::string& title, const bool passed, std::ostream& s) {
+		s << '[' << (passed ? "PASSED" : "FAILED") << "] " << title << " test.\n";
+	}
 
 	IdxVec3DPtr sortedInPlace(const IdxVec3DPtr& conn) {
 		for(auto& nodeLayers : *conn)
