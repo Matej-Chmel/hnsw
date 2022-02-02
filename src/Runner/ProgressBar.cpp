@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <iomanip>
 #include <sstream>
 #include "ProgressBar.hpp"
 
@@ -72,9 +71,5 @@ namespace chm {
 			streamTime(std::cout, seconds);
 			std::cout << ".\n\n";
 		}
-	}
-
-	void padTimeNum(std::ostream& s, const LL num, const size_t places) {
-		s << std::setfill('0') << std::setw(places) << num;
 	}
 }

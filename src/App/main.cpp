@@ -1,12 +1,13 @@
+#define CHM_HNSW_INTERMEDIATE
 #define DECIDE_BY_IDX
 #include <cstdlib>
 #include "Runner/HnswRunner.hpp"
 
-constexpr auto CHECK_INTERMEDIATES = true;
+constexpr auto CHECK_INTERMEDIATES = false;
 constexpr size_t DIM = 128;
 constexpr size_t EF_CONSTRUCTION = 200;
 constexpr size_t M = 16;
-constexpr size_t NODE_COUNT = 100000;
+constexpr size_t NODE_COUNT = 20000;
 constexpr auto REF_ALGO = chm::HnswKind::HNSWLIB;
 constexpr size_t SEED = 100;
 constexpr auto SUB_ALGO = chm::HnswKind::CHM_AUTO;
@@ -32,7 +33,7 @@ int main() {
 				std::make_shared<HnswType>(CHECK_INTERMEDIATES, REF_ALGO),
 				std::make_shared<HnswType>(CHECK_INTERMEDIATES, SUB_ALGO)
 			)
-		)->run();
+		)->build();
 
 		res->print(std::cout);
 		res->write(outDir);

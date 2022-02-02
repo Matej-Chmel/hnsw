@@ -1,13 +1,9 @@
 #pragma once
-#include <chrono>
 #include <iostream>
 #include <string>
+#include "common.hpp"
 
 namespace chm {
-	namespace chr = std::chrono;
-
-	using LL = long long;
-
 	class ProgressBar {
 		std::string bar;
 		float blockTicks;
@@ -27,6 +23,4 @@ namespace chm {
 		ProgressBar(const std::string& title, const size_t total, const size_t width);
 		void update();
 	};
-
-	void padTimeNum(std::ostream& s, const LL num, const size_t places = 2);
 }

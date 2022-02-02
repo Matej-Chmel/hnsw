@@ -1,60 +1,15 @@
 #pragma once
-#define CHM_HNSW_INTERMEDIATE
-#include "chm/Hnsw.hpp"
+#include "BigNode.hpp"
 #include "hnswlibTemplateSpaces.hpp"
+#include "HnswlibWrapper.hpp"
 
 namespace chm {
-	template<typename Coord>
-	using BigNode = Node<Coord, size_t>;
-
-	template<typename Coord>
-	using BigNodeVec = std::vector<BigNode<Coord>>;
-
-	template<typename T>
-	using VecPtr = std::shared_ptr<std::vector<T>>;
-
-	template<typename Coord>
-	using BigNodeVecPtr = VecPtr<BigNode<Coord>>;
-
 	template<typename Coord>
 	using PriorityQueue = std::priority_queue<
 		std::pair<Coord, hnswlib::tableint>,
 		std::vector<std::pair<Coord, hnswlib::tableint>>,
 		typename hnswlib::HierarchicalNSW<Coord>::CompareByFirst
 	>;
-
-	template<typename Coord>
-	class HnswlibInterImpl;
-
-	template<typename Coord>
-	class HnswlibWrapper : public IHnsw<Coord> {
-		friend HnswlibInterImpl<Coord>;
-
-		std::unique_ptr<hnswlib::HierarchicalNSW<Coord>> hnsw;
-		std::unique_ptr<hnswlib::SpaceInterface<Coord>> space;
-
-	public:
-		IdxVec3DPtr getConnections() const override;
-		HnswlibWrapper(const HnswCfgPtr& cfg);
-		void insert(const ConstIter<Coord>& query) override;
-		void knnSearch(
-			const ConstIter<Coord>& query, const size_t K, const size_t ef, std::vector<size_t>& resIndices, std::vector<Coord>& resDistances
-		) override;
-	};
-
-	struct LevelRng : public Unique {
-		const size_t start;
-		const size_t end;
-
-		LevelRng(const size_t start, const size_t end);
-	};
-
-	using LevelRngPtr = std::shared_ptr<LevelRng>;
-
-	template<typename Coord>
-	struct BigNodeCmp {
-		constexpr bool operator()(const BigNode<Coord>& a, const BigNode<Coord>& b) const noexcept;
-	};
 
 	template<typename Coord>
 	struct IHnswIntermediate : public IHnsw<Coord> {
@@ -125,9 +80,6 @@ namespace chm {
 		size_t getEnterPoint() const override;
 	};
 
-	template<typename Coord, typename Idx>
-	BigNodeVecPtr<Coord> copyToVec(const FarHeap<Coord, Idx>& h);
-
 	template<typename Coord>
 	struct HnswlibLocals {
 		hnswlib::tableint cur_c;
@@ -178,74 +130,6 @@ namespace chm {
 		void setupEnterPoint() override;
 		size_t getEnterPoint() const override;
 	};
-
-	template<typename Coord>
-	inline IdxVec3DPtr HnswlibWrapper<Coord>::getConnections() const {
-		auto res = std::make_shared<IdxVec3D>(this->hnsw->cur_element_count);
-		auto& r = *res;
-
-		for(size_t i = 0; i < this->hnsw->cur_element_count; i++) {
-			auto& nodeLayers = r[i];
-			const auto nodeLayersLen = size_t(this->hnsw->element_levels_[i]) + 1;
-			nodeLayers.resize(nodeLayersLen);
-
-			for(size_t level = 0; level < nodeLayersLen; level++) {
-				const auto& linkList = this->hnsw->get_linklist_at_level(hnswlib::tableint(i), int(level));
-				const auto linkListLen = this->hnsw->getListCount(linkList);
-				auto& neighbors = nodeLayers[level];
-				neighbors.reserve(linkListLen);
-
-				for(size_t i = 1; i <= linkListLen; i++)
-					neighbors.push_back(linkList[i]);
-			}
-		}
-
-		return res;
-	}
-
-	template<typename Coord>
-	inline HnswlibWrapper<Coord>::HnswlibWrapper(const HnswCfgPtr& cfg) {
-		if(cfg->useEuclid)
-			this->space = std::make_unique<templatedHnswlib::EuclideanSpace<Coord>>(cfg->dim);
-		else
-			this->space = std::make_unique<templatedHnswlib::IPSpace<Coord>>(cfg->dim);
-
-		this->hnsw = std::make_unique<hnswlib::HierarchicalNSW<Coord>>(this->space.get(), cfg->maxNodeCount, cfg->M, cfg->efConstruction, cfg->seed);
-	}
-
-	template<typename Coord>
-	inline void HnswlibWrapper<Coord>::insert(const ConstIter<Coord>& query) {
-		this->hnsw->addPoint(&*query, this->hnsw->cur_element_count);
-	}
-
-	template<typename Coord>
-	inline void HnswlibWrapper<Coord>::knnSearch(
-		const ConstIter<Coord>& query, const size_t K, const size_t ef, std::vector<size_t>& resIndices, std::vector<Coord>& resDistances
-	) {
-		auto results = this->hnsw->searchKnn(&*query, K);
-		const auto len = results.size();
-
-		resDistances.clear();
-		resDistances.reserve(len);
-		resIndices.clear();
-		resIndices.reserve(len);
-
-		while(!results.empty()) {
-			{
-				const auto& item = results.top();
-				resDistances.push_back(item.first);
-				resIndices.push_back(item.second);
-			}
-			results.pop();
-		}
-	}
-
-	template<typename Coord>
-	inline constexpr bool BigNodeCmp<Coord>::operator()(const BigNode<Coord>& a, const BigNode<Coord>& b) const noexcept {
-		if(a.dist == b.dist)
-			return a.idx < b.idx;
-		return a.dist < b.dist;
-	}
 
 	template<typename Coord>
 	inline void IHnswIntermediate<Coord>::insert(const ConstIter<Coord>& query) {
@@ -437,17 +321,6 @@ namespace chm {
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline size_t HnswInterImpl<Coord, Idx, useEuclid>::getEnterPoint() const {
 		return size_t(this->hnsw->entryIdx);
-	}
-
-	template<typename Coord, typename Idx>
-	VecPtr<Node<Coord, size_t>> copyToVec(const FarHeap<Coord, Idx>& h) {
-		auto res = std::make_shared<BigNodeVec<Coord>>();
-		res->reserve(h.len());
-
-		for(const auto& n : h)
-			res->push_back(Node(n.dist, size_t(n.idx)));
-
-		return res;
 	}
 
 	template<typename Coord>

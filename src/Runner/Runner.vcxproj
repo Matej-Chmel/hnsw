@@ -19,14 +19,25 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BigNode.hpp" />
+    <ClInclude Include="IRunRes.hpp" />
+    <ClInclude Include="common.hpp" />
+    <ClInclude Include="hnswFactoryMethods.hpp" />
     <ClInclude Include="HnswIntermediate.hpp" />
+    <ClInclude Include="HnswlibWrapper.hpp" />
     <ClInclude Include="HnswRunner.hpp" />
+    <ClInclude Include="ICoords.hpp" />
+    <ClInclude Include="InterErr.hpp" />
     <ClInclude Include="ProgressBar.hpp" />
     <ClInclude Include="hnswlibTemplateSpaces.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="HnswIntermediate.cpp" />
+    <ClCompile Include="BigNode.cpp" />
+    <ClCompile Include="common.cpp" />
+    <ClCompile Include="hnswFactoryMethods.cpp" />
     <ClCompile Include="HnswRunner.cpp" />
+    <ClCompile Include="IRunRes.cpp" />
+    <ClCompile Include="InterErr.cpp" />
     <ClCompile Include="ProgressBar.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
