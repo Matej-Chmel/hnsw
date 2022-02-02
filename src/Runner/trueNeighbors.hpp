@@ -47,7 +47,7 @@ namespace chm {
 	}
 
 	template<typename Coord>
-	FoundNeighborsPtr<Coord> readTrueNeighbors(const fs::path& p, const size_t K) {
+	FoundNeighborsPtr<Coord> readTrueNeighbors(const fs::path& p, const size_t K, const size_t Kmax) {
 		std::ifstream s(p, std::ios::binary);
 
 		s.seekg(0, std::ios::end);
@@ -56,19 +56,19 @@ namespace chm {
 
 		const auto len = size / sizeof(unsigned int);
 		std::vector<unsigned int> indices;
-		const auto queryCount = len / K;
+		const auto queryCount = len / Kmax;
+		auto res = std::make_shared<FoundNeighbors<Coord>>(queryCount);
 
 		indices.resize(len);
 		s.read(reinterpret_cast<std::ifstream::char_type*>(indices.data()), size);
 
-		auto res = std::make_shared<FoundNeighbors<Coord>>(queryCount);
-
 		for(size_t queryIdx = 0; queryIdx < queryCount; queryIdx++) {
+			const auto idx = queryIdx * Kmax;
 			auto& queryIndices = res->indices[queryIdx];
 			queryIndices.reserve(K);
 
 			for(size_t neighborIdx = 0; neighborIdx < K; neighborIdx++)
-				queryIndices.push_back(size_t(indices[queryIdx * K + neighborIdx]));
+				queryIndices.push_back(size_t(indices[idx + neighborIdx]));
 		}
 
 		return res;

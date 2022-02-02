@@ -10,9 +10,9 @@ constexpr float ELEM_MAX = 1.f;
 constexpr float ELEM_MIN = 0.f;
 constexpr size_t K = 10;
 constexpr size_t M = 16;
-constexpr size_t NODE_COUNT = 3000;
-constexpr size_t NODE_SEED = 100;
-constexpr size_t QUERY_COUNT = 10;
+constexpr size_t NODE_COUNT = 1000000;
+constexpr size_t NODE_SEED = 1000;
+constexpr size_t QUERY_COUNT = 10000;
 constexpr auto QUERY_SEED = NODE_SEED + 1;
 constexpr auto REF_ALGO = chm::HnswKind::HNSWLIB;
 constexpr auto SUB_ALGO = chm::HnswKind::CHM_AUTO;
@@ -23,13 +23,14 @@ int main() {
 		using namespace chm;
 
 		const auto slnDir = fs::path(SOLUTION_DIR);
+		const auto datasetsDir = slnDir / "datasets";
 		const auto outDir = slnDir / "logs";
 
 		if(!fs::exists(outDir))
 			fs::create_directories(outDir);
 
-		const auto nodes = std::make_shared<RndCoords<float>>(NODE_COUNT, DIM, ELEM_MIN, ELEM_MAX, NODE_SEED);
-		// const auto coords = std::make_shared<ReadCoords<float>>(slnDir / "datasets" / "sift1M.bin", NODE_COUNT, DIM);
+		// const auto nodes = std::make_shared<RndCoords<float>>(NODE_COUNT, DIM, ELEM_MIN, ELEM_MAX, NODE_SEED);
+		const auto nodes = std::make_shared<ReadCoords<float>>(datasetsDir / "sift1M.bin", NODE_COUNT, DIM);
 
 		const auto runner = createRunner<float>(
 			std::make_shared<HnswCfg>(DIM, EF_CONSTRUCTION, M, NODE_COUNT, NODE_SEED, USE_EUCLID),
@@ -55,9 +56,11 @@ int main() {
 		const auto efsLen = efs.size();
 		const auto efsLastIdx = efsLen - 1;
 
-		const auto queries = std::make_shared<RndCoords<float>>(QUERY_COUNT, DIM, ELEM_MIN, ELEM_MAX, QUERY_SEED);
+		// const auto queries = std::make_shared<RndCoords<float>>(QUERY_COUNT, DIM, ELEM_MIN, ELEM_MAX, QUERY_SEED);
+		const auto queries = std::make_shared<ReadCoords<float>>(datasetsDir / "siftQ1M.bin", QUERY_COUNT, DIM);
 		std::ofstream stream(outDir / "search.log");
-		const auto trueNeighbors = bruteforce(nodes->get(), queries->get(), DIM, K);
+		// const auto trueNeighbors = bruteforce(nodes->get(), queries->get(), DIM, K);
+		const auto trueNeighbors = readTrueNeighbors<float>(datasetsDir / "knnQA1M.bin", K, 100);
 
 		for(size_t i = 0; i < efsLen; i++) {
 			const auto searchCfg = std::make_shared<SearchCfg<float>>(queries, efs[i], K);
