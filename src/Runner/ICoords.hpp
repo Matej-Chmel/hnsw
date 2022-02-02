@@ -86,7 +86,7 @@ namespace chm {
 		auto& r = *res;
 		const auto total = this->count * this->dim;
 
-		ProgressBar bar("Generating coordinates.", total, 32);
+		ProgressBar bar("Generating coordinates.", total);
 		r.reserve(total);
 
 		for(size_t i = 0; i < total; i++) {

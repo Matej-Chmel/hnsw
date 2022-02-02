@@ -64,6 +64,7 @@ namespace chm {
 	inline void HnswlibWrapper<Coord>::knnSearch(
 		const ConstIter<Coord>& query, const size_t K, const size_t ef, std::vector<size_t>& resIndices, std::vector<Coord>& resDistances
 	) {
+		this->hnsw->setEf(ef);
 		auto results = this->hnsw->searchKnn(&*query, K);
 		const auto len = results.size();
 

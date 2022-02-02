@@ -1,4 +1,4 @@
-#include "HnswRunner.hpp"
+#include "HnswRunCfg.hpp"
 
 namespace chm {
 	HnswRunCfg::HnswRunCfg(const HnswTypePtr& refType, const HnswTypePtr& subType) : refType(refType), subType(subType) {}

@@ -1,21 +1,9 @@
 #pragma once
-#include "hnswFactoryMethods.hpp"
-#include "HnswIntermediate.hpp"
-#include "ICoords.hpp"
-#include "InterErr.hpp"
-#include "IRunRes.hpp"
-#include "ProgressBar.hpp"
+#include "HnswRunCfg.hpp"
+#include "ISearchRes.hpp"
+#include "trueNeighbors.hpp"
 
 namespace chm {
-	struct HnswRunCfg : public Unique {
-		const HnswTypePtr refType;
-		const HnswTypePtr subType;
-
-		HnswRunCfg(const HnswTypePtr& refType, const HnswTypePtr& subType);
-	};
-
-	using HnswRunCfgPtr = std::shared_ptr<HnswRunCfg>;
-
 	template<typename Coord>
 	class HnswRunner : public Unique {
 	protected:
@@ -28,6 +16,7 @@ namespace chm {
 
 	public:
 		virtual IBuildResPtr build() = 0;
+		virtual ISearchResPtr<Coord> search(const SearchCfgPtr<Coord>& cfg, const FoundNeighborsPtr<Coord>& trueNeighbors) = 0;
 	};
 
 	template<typename Coord>
@@ -69,6 +58,8 @@ namespace chm {
 		HnswInterRunner(const HnswCfgPtr& algoCfg, const ICoordsPtr<Coord>& coords, const HnswRunCfgPtr& runCfg);
 		IBuildResPtr build() override;
 		InterBuildResPtr<Coord> buildInter();
+		ISearchResPtr<Coord> search(const SearchCfgPtr<Coord>& cfg, const FoundNeighborsPtr<Coord>& trueNeighbors) override;
+		InterSearchResPtr<Coord> searchInter(const SearchCfgPtr<Coord>& cfg, const FoundNeighborsPtr<Coord>& trueNeighbors);
 	};
 
 	template<typename Coord>
@@ -77,28 +68,22 @@ namespace chm {
 		IHnswPtr<Coord> subAlgo;
 
 		IHnswPtr<Coord> build(const HnswTypePtr& type, SeqAlgoBuildRes& res);
+		void search(
+			IHnswPtr<Coord>& hnsw, const SearchCfgPtr<Coord>& searchCfg, SeqAlgoSearchRes<Coord>& res, const FoundNeighborsPtr<Coord>& trueNeighbors
+		);
 
 	public:
 		HnswSeqRunner(const HnswCfgPtr& algoCfg, const ICoordsPtr<Coord>& coords, const HnswRunCfgPtr& runCfg);
 		IBuildResPtr build() override;
 		SeqBuildResPtr buildSeq();
+		ISearchResPtr<Coord> search(const SearchCfgPtr<Coord>& cfg, const FoundNeighborsPtr<Coord>& trueNeighbors) override;
+		SeqSearchResPtr<Coord> searchSeq(const SearchCfgPtr<Coord>& cfg, const FoundNeighborsPtr<Coord>& trueNeighbors);
 	};
 
 	template<typename Coord>
 	HnswRunnerPtr<Coord> createRunner(
 		const HnswCfgPtr& algoCfg, const bool checkIntermediates, const ICoordsPtr<Coord>& coords, const HnswRunCfgPtr& runCfg
 	);
-
-	IdxVec3DPtr sortedInPlace(const IdxVec3DPtr& conn);
-
-	class Timer : public Unique {
-		chr::steady_clock::time_point from;
-
-	public:
-		void start();
-		chr::microseconds stop();
-		Timer();
-	};
 
 	template<typename Coord>
 	inline size_t HnswRunner<Coord>::getNodeCount() const {
@@ -417,7 +402,7 @@ namespace chm {
 		this->subAlgo = createHnswIntermediate<Coord>(this->algoCfg, this->runCfg->subType);
 		res->subRes.init = timer.stop();
 
-		ProgressBar bar("Inserting elements.", len, 32);
+		ProgressBar bar("Inserting elements.", len);
 
 		for(size_t i = 0; i < len; i++) {
 			this->curIdx = i;
@@ -440,11 +425,23 @@ namespace chm {
 	}
 
 	template<typename Coord>
+	inline ISearchResPtr<Coord> HnswInterRunner<Coord>::search(const SearchCfgPtr<Coord>& cfg, const FoundNeighborsPtr<Coord>& trueNeighbors) {
+		return this->searchInter(cfg, trueNeighbors);
+	}
+
+	template<typename Coord>
+	inline InterSearchResPtr<Coord> HnswInterRunner<Coord>::searchInter(
+		const SearchCfgPtr<Coord>& cfg, const FoundNeighborsPtr<Coord>& trueNeighbors
+	) {
+		throw std::runtime_error("Method HnswInterRunner::searchInter isn't implemented.");
+	}
+
+	template<typename Coord>
 	inline IHnswPtr<Coord> HnswSeqRunner<Coord>::build(const HnswTypePtr& type, SeqAlgoBuildRes& res) {
 		const auto coordsPtr = this->coords->get();
 		const auto& coords = *coordsPtr;
 		const auto len = this->getNodeCount();
-		ProgressBar bar("Inserting elements.", len, 32);
+		ProgressBar bar("Inserting elements.", len);
 		Timer timer{};
 		Timer totalTimer{};
 		totalTimer.start();
@@ -468,6 +465,33 @@ namespace chm {
 	}
 
 	template<typename Coord>
+	inline void HnswSeqRunner<Coord>::search(
+		IHnswPtr<Coord>& hnsw, const SearchCfgPtr<Coord>& searchCfg, SeqAlgoSearchRes<Coord>& res, const FoundNeighborsPtr<Coord>& trueNeighbors
+	) {
+		const auto queryCoords = searchCfg->coords->get();
+		const auto queryCount = queryCoords->size() / this->algoCfg->dim;
+		ProgressBar bar("Searching queries.", queryCount);
+		Timer timer{};
+		Timer totalTimer{};
+		totalTimer.start();
+
+		for(size_t i = 0; i < queryCount; i++) {
+			timer.start();
+			hnsw->knnSearch(
+				queryCoords->cbegin() + i * this->algoCfg->dim, searchCfg->K, searchCfg->ef, res.neighbors.indices[i], res.neighbors.distances[i]
+			);
+			const auto searchTime = timer.stop();
+
+			res.queryTime.queries.push_back(searchTime);
+			bar.update();
+		}
+
+		res.total = totalTimer.stop();
+		res.calcRecall(trueNeighbors->indices);
+		res.queryTime.calcStats();
+	}
+
+	template<typename Coord>
 	inline HnswSeqRunner<Coord>::HnswSeqRunner(const HnswCfgPtr& algoCfg, const ICoordsPtr<Coord>& coords, const HnswRunCfgPtr& runCfg)
 		: HnswRunner<Coord>(algoCfg, coords, runCfg) {}
 
@@ -483,6 +507,20 @@ namespace chm {
 		this->subAlgo = this->build(this->runCfg->subType, res->subRes);
 		res->refRes.conn = sortedInPlace(this->refAlgo->getConnections());
 		res->subRes.conn = sortedInPlace(this->subAlgo->getConnections());
+		res->runTests();
+		return res;
+	}
+
+	template<typename Coord>
+	inline ISearchResPtr<Coord> HnswSeqRunner<Coord>::search(const SearchCfgPtr<Coord>& cfg, const FoundNeighborsPtr<Coord>& trueNeighbors) {
+		return this->searchSeq(cfg, trueNeighbors);
+	}
+
+	template<typename Coord>
+	inline SeqSearchResPtr<Coord> HnswSeqRunner<Coord>::searchSeq(const SearchCfgPtr<Coord>& cfg, const FoundNeighborsPtr<Coord>& trueNeighbors) {
+		auto res = std::make_shared<SeqSearchRes<Coord>>(cfg->coords->get()->size() / this->algoCfg->dim);
+		this->search(this->refAlgo, cfg, res->refRes, trueNeighbors);
+		this->search(this->subAlgo, cfg, res->subRes, trueNeighbors);
 		res->runTests();
 		return res;
 	}

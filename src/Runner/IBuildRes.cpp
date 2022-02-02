@@ -1,4 +1,6 @@
-#include "IRunRes.hpp"
+#include <stdexcept>
+#include <sstream>
+#include "IBuildRes.hpp"
 
 namespace chm {
 	template<typename T>
@@ -8,10 +10,11 @@ namespace chm {
 		return res.count();
 	}
 
-	void printElapsedTime(std::ostream& s, const std::string& title, const chr::microseconds& elapsed) {
+	std::string elapsedTimeToStr(const chr::microseconds& elapsed) {
+		std::stringstream s;
 		chr::microseconds us = elapsed;
 
-		s << title << ": [";
+		s << '[';
 		padTimeNum(s, convert<chr::minutes>(us));
 		s << ':';
 		padTimeNum(s, convert<chr::seconds>(us));
@@ -19,11 +22,13 @@ namespace chm {
 		padTimeNum(s, convert<chr::milliseconds>(us), 3);
 		s << '.';
 		padTimeNum(s, us.count(), 3);
-		s << "] " << elapsed.count() << " us\n";
+		s << "] " << elapsed.count() << " us";
+
+		return s.str();
 	}
 
-	void printTestRes(const std::string& title, const bool passed, std::ostream& s) {
-		s << '[' << (passed ? "PASSED" : "FAILED") << "] " << title << " test.\n";
+	void IRunRes::write(const fs::path&) const {
+		throw std::runtime_error("Method IRunRes::write isn't overriden.");
 	}
 
 	void QueryTime::calcStats() {
@@ -100,10 +105,10 @@ namespace chm {
 		: nodeCount(nodeCount), levelsPassed(false), neighborIndicesPassed(false), neighborLengthsPassed(false), nodeCountPassed(false) {}
 
 	void IBuildRes::printTests(std::ostream& s) const {
-		printTestRes("Node count", this->nodeCountPassed, s);
-		printTestRes("Levels", this->levelsPassed, s);
-		printTestRes("Neighbors lengths", this->neighborLengthsPassed, s);
-		printTestRes("Neighbors indices", this->neighborIndicesPassed, s);
+		printTestRes(s, "Node count", this->nodeCountPassed);
+		printTestRes(s, "Levels", this->levelsPassed);
+		printTestRes(s, "Neighbors lengths", this->neighborLengthsPassed);
+		printTestRes(s, "Neighbors indices", this->neighborIndicesPassed);
 	}
 
 	void IBuildRes::printTime(std::ostream& s) const {
@@ -131,8 +136,16 @@ namespace chm {
 		writeConn(this->getRefRes().conn, outDir / "refConn.log");
 		writeConn(this->getSubRes().conn, outDir / "subConn.log");
 
-		std::ofstream s(outDir / "run.log");
+		std::ofstream s(outDir / "build.log");
 		this->print(s);
+	}
+
+	void printElapsedTime(std::ostream& s, const std::string& title, const chr::microseconds& elapsed) {
+		s << title << ": " << elapsedTimeToStr(elapsed) << '\n';
+	}
+
+	void printTestRes(std::ostream& s, const std::string& title, const bool passed) {
+		s << testResToStr(passed) << ' ' << title << " test.\n";
 	}
 
 	void SeqAlgoBuildRes::print(std::ostream& s, const std::string& title) const {
@@ -151,6 +164,12 @@ namespace chm {
 	}
 
 	SeqBuildRes::SeqBuildRes(const size_t nodeCount) : IBuildRes(nodeCount), refRes(nodeCount), subRes(nodeCount) {}
+
+	std::string testResToStr(const bool passed) {
+		std::stringstream s;
+		s << '[' << (passed ? "PASSED" : "FAILED") << ']';
+		return s.str();
+	}
 
 	void writeConn(const IdxVec3DPtr& conn, std::ostream& stream) {
 		const auto& c = *conn;

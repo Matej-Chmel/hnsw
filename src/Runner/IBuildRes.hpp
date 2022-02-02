@@ -8,10 +8,12 @@
 #include "InterErr.hpp"
 
 namespace chm {
+	std::string elapsedTimeToStr(const chr::microseconds& elapsed);
+
 	struct IRunRes : public Unique {
 		virtual void print(std::ostream& s) const = 0;
 		virtual void runTests() = 0;
-		virtual void write(const fs::path& outDir) const = 0;
+		virtual void write(const fs::path& outDir) const;
 	};
 
 	struct QueryTime : public Unique {
@@ -33,7 +35,7 @@ namespace chm {
 	};
 
 	class IBuildRes : public IRunRes {
-		size_t nodeCount;
+		const size_t nodeCount;
 
 		bool testLevels() const;
 		bool testNeighborLengths() const;
@@ -42,10 +44,10 @@ namespace chm {
 
 	protected:
 		IBuildRes(const size_t nodeCount);
-		void printTests(std::ostream& s) const;
-		void printTime(std::ostream& s) const;
 		virtual const AlgoBuildRes& getRefRes() const = 0;
 		virtual const AlgoBuildRes& getSubRes() const = 0;
+		void printTests(std::ostream& s) const;
+		void printTime(std::ostream& s) const;
 
 	public:
 		bool levelsPassed;
@@ -79,7 +81,8 @@ namespace chm {
 	template<typename Coord>
 	using InterBuildResPtr = std::shared_ptr<InterBuildRes<Coord>>;
 
-	void printTestRes(const std::string& title, const bool passed, std::ostream& s);
+	void printElapsedTime(std::ostream& s, const std::string& title, const chr::microseconds& elapsed);
+	void printTestRes(std::ostream& s, const std::string& title, const bool passed);
 
 	struct SeqAlgoBuildRes : public AlgoBuildRes {
 		chr::microseconds total;
@@ -102,6 +105,7 @@ namespace chm {
 
 	using SeqBuildResPtr = std::shared_ptr<SeqBuildRes>;
 
+	std::string testResToStr(const bool passed);
 	void writeConn(const IdxVec3DPtr& conn, std::ostream& stream);
 	void writeConn(const IdxVec3DPtr& conn, const fs::path& path);
 
@@ -121,7 +125,7 @@ namespace chm {
 	template<typename Coord>
 	inline void InterBuildRes<Coord>::print(std::ostream& s) const {
 		this->printTests(s);
-		printTestRes("Intermediates comparison", !this->err, s);
+		printTestRes(s, "Intermediates comparison", !this->err);
 		this->printTime(s);
 	}
 

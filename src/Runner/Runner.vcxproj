@@ -20,7 +20,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BigNode.hpp" />
-    <ClInclude Include="IRunRes.hpp" />
+    <ClInclude Include="trueNeighbors.hpp" />
+    <ClInclude Include="HnswRunCfg.hpp" />
+    <ClInclude Include="IBuildRes.hpp" />
     <ClInclude Include="common.hpp" />
     <ClInclude Include="hnswFactoryMethods.hpp" />
     <ClInclude Include="HnswIntermediate.hpp" />
@@ -28,6 +30,7 @@
     <ClInclude Include="HnswRunner.hpp" />
     <ClInclude Include="ICoords.hpp" />
     <ClInclude Include="InterErr.hpp" />
+    <ClInclude Include="ISearchRes.hpp" />
     <ClInclude Include="ProgressBar.hpp" />
     <ClInclude Include="hnswlibTemplateSpaces.hpp" />
   </ItemGroup>
@@ -35,8 +38,8 @@
     <ClCompile Include="BigNode.cpp" />
     <ClCompile Include="common.cpp" />
     <ClCompile Include="hnswFactoryMethods.cpp" />
-    <ClCompile Include="HnswRunner.cpp" />
-    <ClCompile Include="IRunRes.cpp" />
+    <ClCompile Include="HnswRunCfg.cpp" />
+    <ClCompile Include="IBuildRes.cpp" />
     <ClCompile Include="InterErr.cpp" />
     <ClCompile Include="ProgressBar.cpp" />
   </ItemGroup>

@@ -45,21 +45,27 @@
     <ClInclude Include="hnswFactoryMethods.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="IRunRes.hpp">
+    <ClInclude Include="IBuildRes.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ISearchRes.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="HnswRunCfg.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="trueNeighbors.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="HnswRunner.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="ProgressBar.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="BigNode.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="IRunRes.cpp">
+    <ClCompile Include="IBuildRes.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="common.cpp">
@@ -69,6 +75,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="InterErr.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="HnswRunCfg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

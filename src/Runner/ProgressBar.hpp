@@ -20,7 +20,7 @@ namespace chm {
 		void writeNums();
 
 	public:
-		ProgressBar(const std::string& title, const size_t total, const size_t width);
+		ProgressBar(const std::string& title, const size_t total, const size_t width = 32);
 		void update();
 	};
 }
