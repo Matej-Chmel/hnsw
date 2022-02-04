@@ -39,6 +39,7 @@
     <ClCompile Include="common.cpp" />
     <ClCompile Include="hnswFactoryMethods.cpp" />
     <ClCompile Include="HnswRunCfg.cpp" />
+    <ClCompile Include="HnswRunner.cpp" />
     <ClCompile Include="IBuildRes.cpp" />
     <ClCompile Include="InterErr.cpp" />
     <ClCompile Include="ProgressBar.cpp" />

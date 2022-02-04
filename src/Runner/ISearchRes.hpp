@@ -209,7 +209,7 @@ namespace chm {
 
 	template<typename Coord>
 	inline InterSearchRes<Coord>::InterSearchRes(const size_t queryCount)
-		: ISearchRes(queryCount), err(nullptr), refRes(queryCount), subRes(queryCount) {}
+		: ISearchRes<Coord>(queryCount), err(nullptr), refRes(queryCount), subRes(queryCount) {}
 
 	template<typename Coord>
 	inline void InterSearchRes<Coord>::print(std::ostream& s) const {

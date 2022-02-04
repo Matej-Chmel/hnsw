@@ -20,12 +20,12 @@ namespace chm {
 		virtual size_t getLatestLevel() const = 0;
 		virtual void prepareUpperSearch() = 0;
 		virtual LevelRngPtr getUpperRange() const = 0;
-		virtual void searchUpperLayers(const size_t lc) = 0;
+		virtual void searchUpperLayer(const size_t lc) = 0;
 		virtual BigNode<Coord> getNearestNode() const = 0;
 		virtual void prepareLowerSearch() = 0;
 		virtual LevelRngPtr getLowerRange() const = 0;
 		virtual size_t getLowerSearchEntry() const = 0;
-		virtual void searchLowerLayers(const size_t lc) = 0;
+		virtual void searchLowerLayer(const size_t lc) = 0;
 		virtual BigNodeVecPtr<Coord> getLowerLayerResults() const = 0;
 		virtual void selectOriginalNeighbors(const size_t lc) = 0;
 		virtual BigNodeVecPtr<Coord> getOriginalNeighbors() const = 0;
@@ -33,6 +33,13 @@ namespace chm {
 		virtual VecPtr<size_t> getNeighborsForNode(const size_t nodeIdx, const size_t lc) const = 0;
 		virtual void setupEnterPoint() = 0;
 		virtual size_t getEnterPoint() const = 0;
+
+		virtual void startSearchANN(const ConstIter<Coord>& query, const size_t ef, const size_t K) = 0;
+		virtual LevelRngPtr getRangeANN() const = 0;
+		virtual void searchUpperLayerANN(const size_t lc) = 0;
+		virtual void searchLastLayerANN() = 0;
+		virtual BigNodeVecPtr<Coord> getLastLayerResultsANN() const = 0;
+		virtual void fillResultsANN(std::vector<size_t>& resIndices, std::vector<Coord>& resDistances) = 0;
 	};
 
 	template<typename Coord>
@@ -41,12 +48,15 @@ namespace chm {
 	template<typename Coord, typename Idx>
 	struct HnswLocals {
 		FarHeap<Coord, Idx> candidates;
+		size_t ef;
 		Node<Coord, Idx> ep;
+		size_t K;
 		size_t L;
 		size_t l;
 		size_t layerMmax;
 		bool isFirstNode;
 		ConstIter<Coord> query;
+		FarHeap<Coord, Idx> W;
 	};
 
 	template<typename Coord, typename Idx, bool useEuclid>
@@ -65,12 +75,12 @@ namespace chm {
 		size_t getLatestLevel() const override;
 		void prepareUpperSearch() override;
 		LevelRngPtr getUpperRange() const override;
-		void searchUpperLayers(const size_t lc) override;
+		void searchUpperLayer(const size_t lc) override;
 		BigNode<Coord> getNearestNode() const override;
 		void prepareLowerSearch() override;
 		LevelRngPtr getLowerRange() const override;
 		size_t getLowerSearchEntry() const override;
-		void searchLowerLayers(const size_t lc) override;
+		void searchLowerLayer(const size_t lc) override;
 		BigNodeVecPtr<Coord> getLowerLayerResults() const override;
 		void selectOriginalNeighbors(const size_t lc) override;
 		BigNodeVecPtr<Coord> getOriginalNeighbors() const override;
@@ -78,6 +88,13 @@ namespace chm {
 		VecPtr<size_t> getNeighborsForNode(const size_t nodeIdx, const size_t lc) const override;
 		void setupEnterPoint() override;
 		size_t getEnterPoint() const override;
+
+		void startSearchANN(const ConstIter<Coord>& query, const size_t ef, const size_t K) override;
+		LevelRngPtr getRangeANN() const override;
+		void searchUpperLayerANN(const size_t lc) override;
+		void searchLastLayerANN() override;
+		BigNodeVecPtr<Coord> getLastLayerResultsANN() const override;
+		void fillResultsANN(std::vector<size_t>& resIndices, std::vector<Coord>& resDistances) override;
 	};
 
 	template<typename Coord>
@@ -91,9 +108,11 @@ namespace chm {
 		bool epDeleted;
 		bool isFirstElement;
 		bool isUpdate;
+		size_t k;
 		int level;
 		int maxlevelcopy;
 		size_t Mcurmax;
+		const void* query_data;
 		bool shouldUpperSearch;
 		PriorityQueue<Coord> top_candidates;
 	};
@@ -116,12 +135,12 @@ namespace chm {
 		size_t getLatestLevel() const override;
 		void prepareUpperSearch() override;
 		LevelRngPtr getUpperRange() const override;
-		void searchUpperLayers(const size_t lc) override;
+		void searchUpperLayer(const size_t lc) override;
 		BigNode<Coord> getNearestNode() const override;
 		void prepareLowerSearch() override;
 		LevelRngPtr getLowerRange() const override;
 		size_t getLowerSearchEntry() const override;
-		void searchLowerLayers(const size_t lc) override;
+		void searchLowerLayer(const size_t lc) override;
 		BigNodeVecPtr<Coord> getLowerLayerResults() const override;
 		void selectOriginalNeighbors(const size_t lc) override;
 		BigNodeVecPtr<Coord> getOriginalNeighbors() const override;
@@ -129,6 +148,13 @@ namespace chm {
 		VecPtr<size_t> getNeighborsForNode(const size_t nodeIdx, const size_t lc) const override;
 		void setupEnterPoint() override;
 		size_t getEnterPoint() const override;
+
+		void startSearchANN(const ConstIter<Coord>& query, const size_t ef, const size_t K) override;
+		LevelRngPtr getRangeANN() const override;
+		void searchUpperLayerANN(const size_t lc) override;
+		void searchLastLayerANN() override;
+		BigNodeVecPtr<Coord> getLastLayerResultsANN() const override;
+		void fillResultsANN(std::vector<size_t>& resIndices, std::vector<Coord>& resDistances) override;
 	};
 
 	template<typename Coord>
@@ -141,7 +167,7 @@ namespace chm {
 
 			if(range)
 				for(auto lc = range->start; lc > range->end; lc--)
-					this->searchUpperLayers(lc);
+					this->searchUpperLayer(lc);
 		}
 
 		const auto range = this->getLowerRange();
@@ -150,7 +176,7 @@ namespace chm {
 			this->prepareLowerSearch();
 
 			for(auto lc = range->start;; lc--) {
-				this->searchLowerLayers(lc);
+				this->searchLowerLayer(lc);
 				this->selectOriginalNeighbors(lc);
 				this->connect(lc);
 
@@ -222,7 +248,7 @@ namespace chm {
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
-	inline void HnswInterImpl<Coord, Idx, useEuclid>::searchUpperLayers(const size_t lc) {
+	inline void HnswInterImpl<Coord, Idx, useEuclid>::searchUpperLayer(const size_t lc) {
 		this->hnsw->searchUpperLayer(this->local.query, this->local.ep, lc);
 	}
 
@@ -249,7 +275,7 @@ namespace chm {
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
-	inline void HnswInterImpl<Coord, Idx, useEuclid>::searchLowerLayers(const size_t lc) {
+	inline void HnswInterImpl<Coord, Idx, useEuclid>::searchLowerLayer(const size_t lc) {
 		this->local.candidates.clear();
 		this->hnsw->searchLowerLayer(this->local.query, this->local.ep, this->hnsw->efConstruction, lc, this->local.candidates);
 	}
@@ -321,6 +347,64 @@ namespace chm {
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline size_t HnswInterImpl<Coord, Idx, useEuclid>::getEnterPoint() const {
 		return size_t(this->hnsw->entryIdx);
+	}
+
+	template<typename Coord, typename Idx, bool useEuclid>
+	inline void HnswInterImpl<Coord, Idx, useEuclid>::startSearchANN(const ConstIter<Coord>& query, const size_t ef, const size_t K) {
+		this->local.ef = ef;
+		this->local.K = K;
+		this->local.query = query;
+
+		this->hnsw->distancesCache.clear();
+		this->local.ep = Node(
+			this->hnsw->getDistance(this->hnsw->getCoords(this->hnsw->entryIdx), this->local.query, true, this->hnsw->entryIdx),
+			this->hnsw->entryIdx
+		);
+	}
+
+	template<typename Coord, typename Idx, bool useEuclid>
+	inline LevelRngPtr HnswInterImpl<Coord, Idx, useEuclid>::getRangeANN() const {
+		return std::make_shared<LevelRng>(this->hnsw->entryLevel, 0);
+	}
+
+	template<typename Coord, typename Idx, bool useEuclid>
+	inline void HnswInterImpl<Coord, Idx, useEuclid>::searchUpperLayerANN(const size_t lc) {
+		this->hnsw->searchUpperLayer(this->local.query, this->local.ep, lc);
+	}
+
+	template<typename Coord, typename Idx, bool useEuclid>
+	inline void HnswInterImpl<Coord, Idx, useEuclid>::searchLastLayerANN() {
+		this->local.W.clear();
+		this->hnsw->searchLowerLayer(this->local.query, this->local.ep, Idx(this->local.ef), 0, this->local.W);
+	}
+
+	template<typename Coord, typename Idx, bool useEuclid>
+	inline BigNodeVecPtr<Coord> HnswInterImpl<Coord, Idx, useEuclid>::getLastLayerResultsANN() const {
+		return copyToVec(this->local.W);
+	}
+
+	template<typename Coord, typename Idx, bool useEuclid>
+	inline void HnswInterImpl<Coord, Idx, useEuclid>::fillResultsANN(std::vector<size_t>& resIndices, std::vector<Coord>& resDistances) {
+		while(this->local.W.len() > this->local.K)
+			this->local.W.pop();
+
+		const auto len = this->local.W.len();
+		resDistances.clear();
+		resDistances.resize(len);
+		resIndices.clear();
+		resIndices.resize(len);
+
+		for(auto i = len - 1;; i--) {
+			{
+				const auto& n = this->local.W.top();
+				resDistances[i] = n.dist;
+				resIndices[i] = size_t(n.idx);
+			}
+			this->local.W.pop();
+
+			if(!i)
+				break;
+		}
 	}
 
 	template<typename Coord>
@@ -466,7 +550,7 @@ namespace chm {
 	}
 
 	template<typename Coord>
-	inline void HnswlibInterImpl<Coord>::searchUpperLayers(const size_t level) {
+	inline void HnswlibInterImpl<Coord>::searchUpperLayer(const size_t level) {
 		if(this->local.shouldUpperSearch) {
 			bool changed = true;
 			while(changed) {
@@ -517,7 +601,7 @@ namespace chm {
 	}
 
 	template<typename Coord>
-	inline void HnswlibInterImpl<Coord>::searchLowerLayers(const size_t level) {
+	inline void HnswlibInterImpl<Coord>::searchLowerLayer(const size_t level) {
 		if(level > this->local.maxlevelcopy || level < 0)  // possible?
 			throw std::runtime_error("Level error");
 
@@ -713,5 +797,100 @@ namespace chm {
 	template<typename Coord>
 	inline size_t HnswlibInterImpl<Coord>::getEnterPoint() const {
 		return size_t(this->w->hnsw->enterpoint_node_);
+	}
+
+	template<typename Coord>
+	inline void HnswlibInterImpl<Coord>::startSearchANN(const ConstIter<Coord>& query, const size_t ef, const size_t K) {
+		this->local.k = K;
+		this->local.query_data = &*query;
+		this->w->hnsw->setEf(ef);
+
+		this->local.currObj = this->w->hnsw->enterpoint_node_;
+		this->local.curdist = this->w->hnsw->fstdistfunc_(
+			this->local.query_data, this->w->hnsw->getDataByInternalId(this->w->hnsw->enterpoint_node_), this->w->hnsw->dist_func_param_
+		);
+	}
+
+	template<typename Coord>
+	inline LevelRngPtr HnswlibInterImpl<Coord>::getRangeANN() const {
+		return std::make_shared<LevelRng>(size_t(this->w->hnsw->maxlevel_), 0);
+	}
+
+	template<typename Coord>
+	inline void HnswlibInterImpl<Coord>::searchUpperLayerANN(const size_t level) {
+		bool changed = true;
+		while(changed) {
+			changed = false;
+			unsigned int* data;
+
+			data = (unsigned int*)this->w->hnsw->get_linklist(this->local.currObj, level);
+			int size = this->w->hnsw->getListCount(data);
+			this->w->hnsw->metric_hops++;
+			this->w->hnsw->metric_distance_computations += size;
+
+			hnswlib::tableint* datal = (hnswlib::tableint*)(data + 1);
+			for(int i = 0; i < size; i++) {
+				hnswlib::tableint cand = datal[i];
+				if(cand < 0 || cand > this->w->hnsw->max_elements_)
+					throw std::runtime_error("cand error");
+				Coord d = this->w->hnsw->fstdistfunc_(
+					this->local.query_data, this->w->hnsw->getDataByInternalId(cand), this->w->hnsw->dist_func_param_
+				);
+
+				if(d < this->local.curdist) {
+					this->local.curdist = d;
+					this->local.currObj = cand;
+					changed = true;
+				}
+			}
+		}
+	}
+
+	template<typename Coord>
+	inline void HnswlibInterImpl<Coord>::searchLastLayerANN() {
+		if(this->w->hnsw->num_deleted_) {
+			this->local.top_candidates = this->w->hnsw->searchBaseLayerST<true, true>(
+				this->local.currObj, this->local.query_data, std::max(this->w->hnsw->ef_, this->local.k)
+			);
+		} else {
+			this->local.top_candidates = this->w->hnsw->searchBaseLayerST<false, true>(
+				this->local.currObj, this->local.query_data, std::max(this->w->hnsw->ef_, this->local.k)
+			);
+		}
+	}
+
+	template<typename Coord>
+	inline BigNodeVecPtr<Coord> HnswlibInterImpl<Coord>::getLastLayerResultsANN() const {
+		return this->vecFromTopCandidates();
+	}
+
+	template<typename Coord>
+	inline void HnswlibInterImpl<Coord>::fillResultsANN(std::vector<size_t>& resIndices, std::vector<Coord>& resDistances) {
+		std::priority_queue<std::pair<Coord, hnswlib::labeltype>> result;
+
+		while(this->local.top_candidates.size() > this->local.k) {
+			this->local.top_candidates.pop();
+		}
+		while(this->local.top_candidates.size() > 0) {
+			std::pair<Coord, hnswlib::tableint> rez = this->local.top_candidates.top();
+			result.push(std::pair<Coord, hnswlib::labeltype>(rez.first, this->w->hnsw->getExternalLabel(rez.second)));
+			this->local.top_candidates.pop();
+		}
+
+		const auto len = result.size();
+
+		resDistances.clear();
+		resDistances.reserve(len);
+		resIndices.clear();
+		resIndices.reserve(len);
+
+		while(!result.empty()) {
+			{
+				const auto& item = result.top();
+				resDistances.push_back(item.first);
+				resIndices.push_back(item.second);
+			}
+			result.pop();
+		}
 	}
 }

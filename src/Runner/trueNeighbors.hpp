@@ -7,7 +7,7 @@ namespace chm {
 	template<typename Coord>
 	using FoundNeighborsPtr = std::shared_ptr<FoundNeighbors<Coord>>;
 
-	template<typename Coord>
+	template<typename Coord, bool useEuclid>
 	FoundNeighborsPtr<Coord> bruteforce(const VecPtr<Coord>& nodes, const VecPtr<Coord>& queries, const size_t dim, const size_t K) {
 		const auto nodeCount = nodes->size() / dim;
 		const auto queryCount = queries->size() / dim;
@@ -22,7 +22,10 @@ namespace chm {
 			heap.reserve(nodeCount);
 
 			for(size_t nodeIdx = 0; nodeIdx < nodeCount; nodeIdx++) {
-				heap.push(euclideanDistance<Coord>(nodes->cbegin() + nodeIdx * dim, query, dim), nodeIdx);
+				if constexpr(useEuclid)
+					heap.push(euclideanDistance<Coord>(nodes->cbegin() + nodeIdx * dim, query, dim), nodeIdx);
+				else
+					heap.push(innerProductDistance<Coord>(nodes->cbegin() + nodeIdx * dim, query, dim), nodeIdx);
 				bar.update();
 			}
 

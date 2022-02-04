@@ -7,10 +7,12 @@ namespace chm {
 		ENTRY,
 		FINAL_NEIGHBORS,
 		LEVEL,
+		LOWER_SEARCH_ANN,
 		LOWER_SEARCH_ENTRY,
 		LOWER_SEARCH_RES,
 		SELECTED_NEIGHBORS,
-		UPPER_SEARCH
+		UPPER_SEARCH,
+		UPPER_SEARCH_ANN
 	};
 
 	std::string str(const InterTest t);

@@ -16,6 +16,7 @@ namespace chm {
 		virtual ~ICoords() = default;
 		ICoords();
 		VecPtr<Coord> get();
+		size_t getCount(const size_t dim);
 	};
 
 	template<typename Coord>
@@ -28,18 +29,19 @@ namespace chm {
 		const fs::path p;
 
 		VecPtr<Coord> create() const override;
+		std::streamsize getSize(std::ifstream& s) const;
 
 	public:
-		ReadCoords(const fs::path& p, const size_t count, const size_t dim);
+		ReadCoords(const fs::path& p, const size_t count = 0, const size_t dim = 0);
 	};
 
 	template<typename Coord>
 	class RndCoords : public ICoords<Coord> {
-		size_t count;
-		size_t dim;
-		Coord min;
-		Coord max;
-		unsigned int seed;
+		const size_t count;
+		const size_t dim;
+		const Coord min;
+		const Coord max;
+		const unsigned int seed;
 
 		VecPtr<Coord> create() const override;
 
@@ -64,14 +66,30 @@ namespace chm {
 	}
 
 	template<typename Coord>
+	inline size_t ICoords<Coord>::getCount(const size_t dim) {
+		return this->get()->size() / dim;
+	}
+
+	template<typename Coord>
 	inline VecPtr<Coord> ReadCoords<Coord>::create() const {
-		const auto len = this->count * this->dim;
 		auto res = std::make_shared<std::vector<Coord>>();
 		std::ifstream s(this->p, std::ios::binary);
+		const auto size = this->getSize(s);
 
-		res->resize(len);
-		s.read(reinterpret_cast<std::ifstream::char_type*>(res->data()), len * sizeof(Coord));
+		res->resize(size / sizeof(Coord));
+		s.read(reinterpret_cast<std::ifstream::char_type*>(res->data()), size);
 		return res;
+	}
+
+	template<typename Coord>
+	inline std::streamsize ReadCoords<Coord>::getSize(std::ifstream& s) const {
+		if(this->count && this->dim)
+			return this->count * this->dim * sizeof(Coord);
+
+		s.seekg(0, std::ios::end);
+		const auto res = s.tellg();
+		s.seekg(0, std::ios::beg);
+		return std::streamsize(res);
 	}
 
 	template<typename Coord>

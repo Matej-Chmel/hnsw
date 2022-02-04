@@ -32,6 +32,7 @@ namespace chm {
 		chr::microseconds subTime;
 
 		void insert(const ConstIter<Coord>& query);
+		void searchANN(const ConstIter<Coord>& query, const size_t ef, const size_t K, const InterSearchResPtr<Coord>& res);
 		void setErr(const size_t actual, const size_t expected, const InterTest test);
 		void setErr(const BigNode<Coord>& actual, const BigNode<Coord>& expected, const size_t lc, const InterTest test);
 		void setErr(const BigNodeVecPtr<Coord>& actual, const BigNodeVecPtr<Coord>& expected, const size_t lc, const InterTest test);
@@ -40,11 +41,11 @@ namespace chm {
 		void startInsert(const ConstIter<Coord>& query);
 		void testLatestLevel();
 		void prepareUpperSearch();
-		void searchUpperLayers(const size_t lc);
-		void testNearestNode(const size_t lc);
+		void searchUpperLayer(const size_t lc);
+		void testNearestNode(const size_t lc, const bool isANN = false);
 		void prepareLowerSearch();
 		void testLowerSearchEntry();
-		void searchLowerLayers(const size_t lc);
+		void searchLowerLayer(const size_t lc);
 		void testLowerLayerResults(const size_t lc);
 		void selectOriginalNeighbors(const size_t lc);
 		BigNodeVecPtr<Coord> testOriginalNeighbors(const size_t lc);
@@ -53,6 +54,12 @@ namespace chm {
 		void testConnections(const BigNodeVecPtr<Coord>& neighbors, const size_t queryIdx, const size_t lc);
 		void setupEnterPoint();
 		void testEnterPoint();
+
+		void startSearchANN(const ConstIter<Coord>& query, const size_t ef, const size_t K);
+		void searchUpperLayerANN(const size_t lc);
+		void searchLastLayerANN();
+		void testLastLayerResultsANN();
+		void fillResultsANN(const InterSearchResPtr<Coord>& res);
 
 	public:
 		HnswInterRunner(const HnswCfgPtr& algoCfg, const ICoordsPtr<Coord>& coords, const HnswRunCfgPtr& runCfg);
@@ -85,6 +92,8 @@ namespace chm {
 		const HnswCfgPtr& algoCfg, const bool checkIntermediates, const ICoordsPtr<Coord>& coords, const HnswRunCfgPtr& runCfg
 	);
 
+	std::string progressBarTitleANN(const size_t ef);
+
 	template<typename Coord>
 	inline size_t HnswRunner<Coord>::getNodeCount() const {
 		return this->coords->get()->size() / this->algoCfg->dim;
@@ -101,23 +110,23 @@ namespace chm {
 		this->prepareUpperSearch();
 
 		{
-			const auto rng = this->refAlgo->getUpperRange();
+			const auto range = this->refAlgo->getUpperRange();
 
-			if(rng)
-				for(auto lc = rng->start; lc > rng->end; lc--) {
-					this->searchUpperLayers(lc);
+			if(range)
+				for(auto lc = range->start; lc > range->end; lc--) {
+					this->searchUpperLayer(lc);
 					this->testNearestNode(lc);
 				}
 		}
 
-		const auto rng = this->refAlgo->getLowerRange();
+		const auto range = this->refAlgo->getLowerRange();
 
-		if(rng) {
+		if(range) {
 			this->prepareLowerSearch();
 
-			for(auto lc = rng->start;; lc--) {
+			for(auto lc = range->start;; lc--) {
 				this->testLowerSearchEntry();
-				this->searchLowerLayers(lc);
+				this->searchLowerLayer(lc);
 				this->testLowerLayerResults(lc);
 
 				this->selectOriginalNeighbors(lc);
@@ -133,6 +142,24 @@ namespace chm {
 
 		this->setupEnterPoint();
 		this->testEnterPoint();
+	}
+
+	template<typename Coord>
+	inline void HnswInterRunner<Coord>::searchANN(
+		const ConstIter<Coord>& query, const size_t ef, const size_t K, const InterSearchResPtr<Coord>& res
+	) {
+		this->startSearchANN(query, ef, K);
+
+		const auto range = this->refAlgo->getRangeANN();
+
+		for(auto lc = range->start; lc > range->end; lc--) {
+			this->searchUpperLayerANN(lc);
+			this->testNearestNode(lc, true);
+		}
+
+		this->searchLastLayerANN();
+		this->testLastLayerResultsANN();
+		this->fillResultsANN(res);
 	}
 
 	template<typename Coord>
@@ -220,19 +247,19 @@ namespace chm {
 	}
 
 	template<typename Coord>
-	inline void HnswInterRunner<Coord>::searchUpperLayers(const size_t lc) {
+	inline void HnswInterRunner<Coord>::searchUpperLayer(const size_t lc) {
 		Timer timer{};
 		timer.start();
-		this->refAlgo->searchUpperLayers(lc);
+		this->refAlgo->searchUpperLayer(lc);
 		this->refTime += timer.stop();
 
 		timer.start();
-		this->subAlgo->searchUpperLayers(lc);
+		this->subAlgo->searchUpperLayer(lc);
 		this->subTime += timer.stop();
 	}
 
 	template<typename Coord>
-	inline void HnswInterRunner<Coord>::testNearestNode(const size_t lc) {
+	inline void HnswInterRunner<Coord>::testNearestNode(const size_t lc, const bool isANN) {
 		if(this->err)
 			return;
 
@@ -240,7 +267,7 @@ namespace chm {
 		const auto expected = this->refAlgo->getNearestNode();
 
 		if(actual.dist != expected.dist || actual.idx != expected.idx)
-			this->setErr(actual, expected, lc, InterTest::UPPER_SEARCH);
+			this->setErr(actual, expected, lc, isANN ? InterTest::UPPER_SEARCH_ANN : InterTest::UPPER_SEARCH);
 	}
 
 	template<typename Coord>
@@ -268,14 +295,14 @@ namespace chm {
 	}
 
 	template<typename Coord>
-	inline void HnswInterRunner<Coord>::searchLowerLayers(const size_t lc) {
+	inline void HnswInterRunner<Coord>::searchLowerLayer(const size_t lc) {
 		Timer timer{};
 		timer.start();
-		this->refAlgo->searchLowerLayers(lc);
+		this->refAlgo->searchLowerLayer(lc);
 		this->refTime += timer.stop();
 
 		timer.start();
-		this->subAlgo->searchLowerLayers(lc);
+		this->subAlgo->searchLowerLayer(lc);
 		this->subTime += timer.stop();
 	}
 
@@ -378,6 +405,62 @@ namespace chm {
 	}
 
 	template<typename Coord>
+	inline void HnswInterRunner<Coord>::startSearchANN(const ConstIter<Coord>& query, const size_t ef, const size_t K) {
+		Timer timer{};
+		timer.start();
+		this->refAlgo->startSearchANN(query, ef, K);
+		this->refTime += timer.stop();
+
+		timer.start();
+		this->subAlgo->startSearchANN(query, ef, K);
+		this->subTime += timer.stop();
+	}
+
+	template<typename Coord>
+	inline void HnswInterRunner<Coord>::searchUpperLayerANN(const size_t lc) {
+		Timer timer{};
+		timer.start();
+		this->refAlgo->searchUpperLayerANN(lc);
+		this->refTime += timer.stop();
+
+		timer.start();
+		this->subAlgo->searchUpperLayerANN(lc);
+		this->subTime += timer.stop();
+	}
+
+	template<typename Coord>
+	inline void HnswInterRunner<Coord>::searchLastLayerANN() {
+		Timer timer{};
+		timer.start();
+		this->refAlgo->searchLastLayerANN();
+		this->refTime += timer.stop();
+
+		timer.start();
+		this->subAlgo->searchLastLayerANN();
+		this->subTime += timer.stop();
+	}
+
+	template<typename Coord>
+	inline void HnswInterRunner<Coord>::testLastLayerResultsANN() {
+		if(this->err)
+			return;
+
+		this->testVec(this->subAlgo->getLastLayerResultsANN(), this->refAlgo->getLastLayerResultsANN(), 0, InterTest::LOWER_SEARCH_ANN);
+	}
+
+	template<typename Coord>
+	inline void HnswInterRunner<Coord>::fillResultsANN(const InterSearchResPtr<Coord>& res) {
+		Timer timer{};
+		timer.start();
+		this->refAlgo->fillResultsANN(res->refRes.neighbors.indices[this->curIdx], res->refRes.neighbors.distances[this->curIdx]);
+		this->refTime += timer.stop();
+
+		timer.start();
+		this->subAlgo->fillResultsANN(res->subRes.neighbors.indices[this->curIdx], res->subRes.neighbors.distances[this->curIdx]);
+		this->subTime += timer.stop();
+	}
+
+	template<typename Coord>
 	inline HnswInterRunner<Coord>::HnswInterRunner(const HnswCfgPtr& algoCfg, const ICoordsPtr<Coord>& coords, const HnswRunCfgPtr& runCfg)
 		: HnswRunner<Coord>(algoCfg, coords, runCfg), curIdx(0), err(nullptr), refAlgo(nullptr), refTime(0), subAlgo(nullptr), subTime(0) {}
 
@@ -433,7 +516,29 @@ namespace chm {
 	inline InterSearchResPtr<Coord> HnswInterRunner<Coord>::searchInter(
 		const SearchCfgPtr<Coord>& cfg, const FoundNeighborsPtr<Coord>& trueNeighbors
 	) {
-		throw std::runtime_error("Method HnswInterRunner::searchInter isn't implemented.");
+		const auto queryCoords = cfg->coords->get();
+		const auto queryCount = queryCoords->size() / this->algoCfg->dim;
+		auto res = std::make_shared<InterSearchRes<Coord>>(queryCount);
+		ProgressBar bar(progressBarTitleANN(cfg->ef), queryCount);
+
+		for(size_t i = 0; i < queryCount; i++) {
+			this->curIdx = i;
+			this->refTime = chr::microseconds(0);
+			this->subTime = chr::microseconds(0);
+			this->searchANN(queryCoords->cbegin() + i * this->algoCfg->dim, cfg->ef, cfg->K, res);
+
+			res->refRes.queryTime.queries.push_back(this->refTime);
+			res->subRes.queryTime.queries.push_back(this->subTime);
+			bar.update();
+		}
+
+		res->err = err;
+		res->refRes.calcRecall(trueNeighbors->indices);
+		res->refRes.queryTime.calcStats();
+		res->subRes.calcRecall(trueNeighbors->indices);
+		res->subRes.queryTime.calcStats();
+		res->runTests();
+		return res;
 	}
 
 	template<typename Coord>
@@ -470,7 +575,7 @@ namespace chm {
 	) {
 		const auto queryCoords = searchCfg->coords->get();
 		const auto queryCount = queryCoords->size() / this->algoCfg->dim;
-		ProgressBar bar("Searching queries.", queryCount);
+		ProgressBar bar(progressBarTitleANN(searchCfg->ef), queryCount);
 		Timer timer{};
 		Timer totalTimer{};
 		totalTimer.start();

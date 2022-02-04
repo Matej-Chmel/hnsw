@@ -10,6 +10,8 @@ namespace chm {
 				return "Neighbors after connecting";
 			case InterTest::LEVEL:
 				return "Last generated level";
+			case InterTest::LOWER_SEARCH_ANN:
+				return "Result of lower search when running ANN search";
 			case InterTest::LOWER_SEARCH_ENTRY:
 				return "Entry point of lower search";
 			case InterTest::LOWER_SEARCH_RES:
@@ -18,6 +20,8 @@ namespace chm {
 				return "Original selected neighbors";
 			case InterTest::UPPER_SEARCH:
 				return "Nearest node from upper search";
+			case InterTest::UPPER_SEARCH_ANN:
+				return "Nearest node from upper search when running ANN search";
 			default:
 				throw std::runtime_error("Unknown InterTest value.");
 		}

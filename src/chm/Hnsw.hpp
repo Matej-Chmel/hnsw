@@ -322,7 +322,7 @@ namespace chm {
 		const ConstIter<Coord>& node, const ConstIter<Coord>& query, const bool useCache, const Idx nodeIdx
 	) {
 		if(useCache) {
-			auto iter = this->distancesCache.find(nodeIdx);
+			const auto iter = this->distancesCache.find(nodeIdx);
 
 			if(iter != this->distancesCache.end())
 				return iter->second;
@@ -573,7 +573,7 @@ namespace chm {
 		resIndices.clear();
 		resIndices.resize(len);
 
-		for(size_t i = len - 1;; i--) {
+		for(auto i = len - 1;; i--) {
 			{
 				const auto& n = W.top();
 				resDistances[i] = n.dist;
@@ -607,7 +607,7 @@ namespace chm {
 		Coord res = 0;
 
 		for(size_t i = 0; i < dim; i++) {
-			auto diff = *(node + i) - *(query + i);
+			const auto diff = *(node + i) - *(query + i);
 			res += diff * diff;
 		}
 
