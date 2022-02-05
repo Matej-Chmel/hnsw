@@ -32,15 +32,16 @@ namespace chm {
 
 		std::vector<Coord> coords;
 		std::vector<std::vector<IdxVec>> connections;
-		size_t dim;
+		const size_t dim;
 		std::unordered_map<Idx, Coord> distancesCache;
-		size_t efConstruction;
+		const bool distanceCacheEnabled;
+		const size_t efConstruction;
 		Idx entryIdx;
 		size_t entryLevel;
 		std::default_random_engine gen;
-		size_t M;
-		double mL;
-		size_t Mmax0;
+		const size_t M;
+		const double mL;
+		const size_t Mmax0;
 		Idx nodeCount;
 		IVisitedSetPtr<Idx> visited;
 
@@ -93,7 +94,7 @@ namespace chm {
 	inline Coord Hnsw<Coord, Idx, useEuclid>::getDistance(
 		const ConstIter<Coord>& node, const ConstIter<Coord>& query, const bool useCache, const Idx nodeIdx
 	) {
-		if(useCache) {
+		if(this->distanceCacheEnabled && useCache) {
 			const auto iter = this->distancesCache.find(nodeIdx);
 
 			if(iter != this->distancesCache.end())
@@ -107,7 +108,7 @@ namespace chm {
 		else
 			res = innerProductDistance<Coord>(node, query, this->dim);
 
-		if(useCache)
+		if(this->distanceCacheEnabled && useCache)
 			this->distancesCache[nodeIdx] = res;
 
 		return res;
@@ -255,7 +256,7 @@ namespace chm {
 
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline Hnsw<Coord, Idx, useEuclid>::Hnsw(const HnswCfgPtr& cfg, const HnswSettingsPtr& settings)
-		: dim(cfg->dim), efConstruction(cfg->efConstruction), entryIdx(0), entryLevel(0),
+		: dim(cfg->dim), distanceCacheEnabled(settings->distanceCacheEnabled), efConstruction(cfg->efConstruction), entryIdx(0), entryLevel(0),
 		M(cfg->M), mL(1.0 / std::log(1.0 * this->M)), Mmax0(this->M * 2), nodeCount(0) {
 
 		this->coords.resize(this->dim * cfg->maxNodeCount);

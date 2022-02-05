@@ -11,7 +11,7 @@ constexpr auto ELEM_MAX = 1.f;
 constexpr auto ELEM_MIN = 0.f;
 constexpr size_t K = 10;
 constexpr size_t M = 16;
-constexpr size_t NODE_COUNT = 100000;
+constexpr size_t NODE_COUNT = 10000;
 constexpr size_t NODE_SEED = 1000;
 constexpr auto QUERY_COUNT = NODE_COUNT / 100;
 constexpr auto QUERY_SEED = NODE_SEED + 1;
@@ -60,10 +60,10 @@ void run() {
 		CHECK_INTERMEDIATES, nodes,
 		std::make_shared<HnswRunCfg>(
 			std::make_shared<HnswType>(
-				cfg, CHECK_INTERMEDIATES, REF_ALGO, std::make_shared<HnswSettings>(false)
+				cfg, CHECK_INTERMEDIATES, REF_ALGO, std::make_shared<HnswSettings>(true, true)
 			),
 			std::make_shared<HnswType>(
-				cfg, CHECK_INTERMEDIATES, SUB_ALGO, std::make_shared<HnswSettings>(true)
+				cfg, CHECK_INTERMEDIATES, SUB_ALGO, std::make_shared<HnswSettings>(false, true)
 			)
 		)
 	);

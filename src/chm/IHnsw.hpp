@@ -34,9 +34,10 @@ namespace chm {
 	using HnswCfgPtr = std::shared_ptr<HnswCfg>;
 
 	struct HnswSettings : public Unique {
+		const bool distanceCacheEnabled;
 		const bool useBitset;
-
-		HnswSettings(const bool useBitset);
+		
+		HnswSettings(const bool distanceCacheEnabled, const bool useBitset);
 	};
 
 	using HnswSettingsPtr = std::shared_ptr<HnswSettings>;
@@ -45,5 +46,6 @@ namespace chm {
 		const size_t dim, const size_t efConstruction, const size_t M, const size_t maxNodeCount, const unsigned int seed, const bool useEuclid
 	) : dim(dim), efConstruction(efConstruction), M(M), maxNodeCount(maxNodeCount), seed(seed), useEuclid(useEuclid) {}
 
-	inline HnswSettings::HnswSettings(const bool useBitset) : useBitset(useBitset) {}
+	inline HnswSettings::HnswSettings(const bool distanceCacheEnabled, const bool useBitset)
+		: distanceCacheEnabled(distanceCacheEnabled), useBitset(useBitset) {}
 }
