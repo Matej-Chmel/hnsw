@@ -19,7 +19,12 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Heap.hpp" />
     <ClInclude Include="Hnsw.hpp" />
+    <ClInclude Include="hnswDistances.hpp" />
+    <ClInclude Include="IHnsw.hpp" />
+    <ClInclude Include="Node.hpp" />
+    <ClInclude Include="Unique.hpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

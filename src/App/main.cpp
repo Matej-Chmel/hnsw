@@ -4,21 +4,21 @@
 #include "Runner/HnswRunner.hpp"
 namespace fs = chm::fs;
 
-constexpr auto CHECK_INTERMEDIATES = true;
+constexpr auto CHECK_INTERMEDIATES = false;
 constexpr size_t DIM = 128;
 constexpr size_t EF_CONSTRUCTION = 200;
 constexpr auto ELEM_MAX = 1.f;
 constexpr auto ELEM_MIN = 0.f;
 constexpr size_t K = 10;
 constexpr size_t M = 16;
-constexpr size_t NODE_COUNT = 100000;
+constexpr size_t NODE_COUNT = 1000;
 constexpr size_t NODE_SEED = 1000;
-constexpr size_t QUERY_COUNT = 1000;
+constexpr size_t QUERY_COUNT = 10;
 constexpr auto QUERY_SEED = NODE_SEED + 1;
 constexpr auto REF_ALGO = chm::HnswKind::HNSWLIB;
 constexpr auto SUB_ALGO = chm::HnswKind::CHM_AUTO;
 constexpr auto USE_EUCLID = true;
-constexpr auto USE_SIFT = true;
+constexpr auto USE_SIFT = false;
 
 template<typename Coord>
 chm::ICoordsPtr<Coord> getNodes(const fs::path& datasetsDir) {
