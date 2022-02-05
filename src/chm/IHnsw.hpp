@@ -33,7 +33,17 @@ namespace chm {
 
 	using HnswCfgPtr = std::shared_ptr<HnswCfg>;
 
+	struct HnswSettings : public Unique {
+		const bool useBitset;
+
+		HnswSettings(const bool useBitset);
+	};
+
+	using HnswSettingsPtr = std::shared_ptr<HnswSettings>;
+
 	inline HnswCfg::HnswCfg(
 		const size_t dim, const size_t efConstruction, const size_t M, const size_t maxNodeCount, const unsigned int seed, const bool useEuclid
 	) : dim(dim), efConstruction(efConstruction), M(M), maxNodeCount(maxNodeCount), seed(seed), useEuclid(useEuclid) {}
+
+	inline HnswSettings::HnswSettings(const bool useBitset) : useBitset(useBitset) {}
 }

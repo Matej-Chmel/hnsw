@@ -3,9 +3,9 @@
 #include <limits>
 #include <random>
 #include <unordered_map>
-#include <unordered_set>
 #include <utility>
 #include "IHnsw.hpp"
+#include "IVisitedSet.hpp"
 #include "Heap.hpp"
 #include "hnswDistances.hpp"
 
@@ -42,6 +42,7 @@ namespace chm {
 		double mL;
 		size_t Mmax0;
 		Idx nodeCount;
+		IVisitedSetPtr<Idx> visited;
 
 		void fillHeap(const ConstIter<Coord>& query, const ConstIter<Coord>& insertedQuery, IdxVec& eConn, FarHeap& eNewConn);
 		ConstIter<Coord> getCoords(const Idx idx) const;
@@ -55,7 +56,7 @@ namespace chm {
 
 	public:
 		IdxVec3DPtr getConnections() const override;
-		Hnsw(const HnswCfgPtr& cfg);
+		Hnsw(const HnswCfgPtr& cfg, const HnswSettingsPtr& settings);
 		void insert(const ConstIter<Coord>& query) override;
 		void knnSearch(
 			const ConstIter<Coord>& query, const size_t K, const size_t ef, std::vector<size_t>& resIndices, std::vector<Coord>& resDistances
@@ -63,10 +64,10 @@ namespace chm {
 	};
 
 	template<typename Coord>
-	IHnswPtr<Coord> createHnsw(const HnswCfgPtr& cfg);
+	IHnswPtr<Coord> createHnsw(const HnswCfgPtr& cfg, const HnswSettingsPtr& settings);
 
 	template<typename Coord, bool useEuclid>
-	IHnswPtr<Coord> createHnsw(const HnswCfgPtr& cfg);
+	IHnswPtr<Coord> createHnsw(const HnswCfgPtr& cfg, const HnswSettingsPtr& settings);
 
 	template<typename Idx>
 	bool isWideEnough(const size_t max);
@@ -134,7 +135,7 @@ namespace chm {
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline void Hnsw<Coord, Idx, useEuclid>::searchLowerLayer(const ConstIter<Coord>& query, Node& ep, const size_t ef, const size_t lc, FarHeap& W) {
 		NearHeap C{ep};
-		std::unordered_set<Idx> v{ep.idx};
+		this->visited->prepare(this->nodeCount, ep.idx);
 		W.push(ep);
 
 		while(C.len()) {
@@ -156,7 +157,7 @@ namespace chm {
 			C.pop();
 
 			for(const auto& eIdx : neighbors) {
-				if(v.insert(eIdx).second) {
+				if(this->visited->insert(eIdx)) {
 					const auto eDist = this->getDistance(this->getCoords(eIdx), query, true, eIdx);
 					bool shouldAdd{};
 
@@ -253,13 +254,14 @@ namespace chm {
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
-	inline Hnsw<Coord, Idx, useEuclid>::Hnsw(const HnswCfgPtr& cfg)
+	inline Hnsw<Coord, Idx, useEuclid>::Hnsw(const HnswCfgPtr& cfg, const HnswSettingsPtr& settings)
 		: dim(cfg->dim), efConstruction(cfg->efConstruction), entryIdx(0), entryLevel(0),
 		M(cfg->M), mL(1.0 / std::log(1.0 * this->M)), Mmax0(this->M * 2), nodeCount(0) {
 
 		this->coords.resize(this->dim * cfg->maxNodeCount);
 		this->gen.seed(cfg->seed);
 		this->connections.resize(cfg->maxNodeCount);
+		this->visited = createVisitedSet<Idx>(settings->useBitset);
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
@@ -358,19 +360,19 @@ namespace chm {
 	}
 
 	template<typename Coord>
-	IHnswPtr<Coord> createHnsw(const HnswCfgPtr& cfg) {
+	IHnswPtr<Coord> createHnsw(const HnswCfgPtr& cfg, const HnswSettingsPtr& settings) {
 		if(cfg->useEuclid)
-			return createHnsw<Coord, true>(cfg);
-		return createHnsw<Coord, false>(cfg);
+			return createHnsw<Coord, true>(cfg, settings);
+		return createHnsw<Coord, false>(cfg, settings);
 	}
 
 	template<typename Coord, bool useEuclid>
-	IHnswPtr<Coord> createHnsw(const HnswCfgPtr& cfg) {
+	IHnswPtr<Coord> createHnsw(const HnswCfgPtr& cfg, const HnswSettingsPtr& settings) {
 		if(isWideEnough<unsigned short>(cfg->maxNodeCount))
-			return std::make_shared<Hnsw<Coord, unsigned short, useEuclid>>(cfg);
+			return std::make_shared<Hnsw<Coord, unsigned short, useEuclid>>(cfg, settings);
 		if(isWideEnough<unsigned int>(cfg->maxNodeCount))
-			return std::make_shared<Hnsw<Coord, unsigned int, useEuclid>>(cfg);
-		return std::make_shared<Hnsw<Coord, size_t, useEuclid>>(cfg);
+			return std::make_shared<Hnsw<Coord, unsigned int, useEuclid>>(cfg, settings);
+		return std::make_shared<Hnsw<Coord, size_t, useEuclid>>(cfg, settings);
 	}
 
 	template<typename Idx>

@@ -66,7 +66,7 @@ namespace chm {
 
 	public:
 		IdxVec3DPtr getConnections() const override;
-		HnswInterImpl(const HnswCfgPtr& cfg);
+		HnswInterImpl(const HnswCfgPtr& cfg, const HnswSettingsPtr& settings);
 		void knnSearch(
 			const ConstIter<Coord>& query, const size_t K, const size_t ef, std::vector<size_t>& resIndices, std::vector<Coord>& resDistances
 		) override;
@@ -194,8 +194,8 @@ namespace chm {
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
-	inline HnswInterImpl<Coord, Idx, useEuclid>::HnswInterImpl(const HnswCfgPtr& cfg)
-		: hnsw(std::make_unique<Hnsw<Coord, Idx, useEuclid>>(cfg)), local{} {}
+	inline HnswInterImpl<Coord, Idx, useEuclid>::HnswInterImpl(const HnswCfgPtr& cfg, const HnswSettingsPtr& settings)
+		: hnsw(std::make_unique<Hnsw<Coord, Idx, useEuclid>>(cfg, settings)), local{} {}
 
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline void HnswInterImpl<Coord, Idx, useEuclid>::knnSearch(

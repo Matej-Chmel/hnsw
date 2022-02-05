@@ -7,12 +7,12 @@ namespace chm {
 	template<typename Coord>
 	class HnswRunner : public Unique {
 	protected:
-		const HnswCfgPtr algoCfg;
 		const ICoordsPtr<Coord> coords;
+		const size_t dim;
 		const HnswRunCfgPtr runCfg;
 
 		size_t getNodeCount() const;
-		HnswRunner(const HnswCfgPtr& algoCfg, const ICoordsPtr<Coord>& coords, const HnswRunCfgPtr& runCfg);
+		HnswRunner(const ICoordsPtr<Coord>& coords, const HnswRunCfgPtr& runCfg);
 
 	public:
 		virtual IBuildResPtr build() = 0;
@@ -62,7 +62,7 @@ namespace chm {
 		void fillResultsANN(const InterSearchResPtr<Coord>& res);
 
 	public:
-		HnswInterRunner(const HnswCfgPtr& algoCfg, const ICoordsPtr<Coord>& coords, const HnswRunCfgPtr& runCfg);
+		HnswInterRunner(const ICoordsPtr<Coord>& coords, const HnswRunCfgPtr& runCfg);
 		IBuildResPtr build() override;
 		InterBuildResPtr<Coord> buildInter();
 		ISearchResPtr<Coord> search(const SearchCfgPtr<Coord>& cfg, const FoundNeighborsPtr<Coord>& trueNeighbors) override;
@@ -80,7 +80,7 @@ namespace chm {
 		);
 
 	public:
-		HnswSeqRunner(const HnswCfgPtr& algoCfg, const ICoordsPtr<Coord>& coords, const HnswRunCfgPtr& runCfg);
+		HnswSeqRunner(const ICoordsPtr<Coord>& coords, const HnswRunCfgPtr& runCfg);
 		IBuildResPtr build() override;
 		SeqBuildResPtr buildSeq();
 		ISearchResPtr<Coord> search(const SearchCfgPtr<Coord>& cfg, const FoundNeighborsPtr<Coord>& trueNeighbors) override;
@@ -88,20 +88,18 @@ namespace chm {
 	};
 
 	template<typename Coord>
-	HnswRunnerPtr<Coord> createRunner(
-		const HnswCfgPtr& algoCfg, const bool checkIntermediates, const ICoordsPtr<Coord>& coords, const HnswRunCfgPtr& runCfg
-	);
+	HnswRunnerPtr<Coord> createRunner(const bool checkIntermediates, const ICoordsPtr<Coord>& coords, const HnswRunCfgPtr& runCfg);
 
 	std::string progressBarTitleANN(const size_t ef);
 
 	template<typename Coord>
 	inline size_t HnswRunner<Coord>::getNodeCount() const {
-		return this->coords->get()->size() / this->algoCfg->dim;
+		return this->coords->get()->size() / this->dim;
 	}
 
 	template<typename Coord>
-	inline HnswRunner<Coord>::HnswRunner(const HnswCfgPtr& algoCfg, const ICoordsPtr<Coord>& coords, const HnswRunCfgPtr& runCfg)
-		: algoCfg(algoCfg), coords(coords), runCfg(runCfg) {}
+	inline HnswRunner<Coord>::HnswRunner(const ICoordsPtr<Coord>& coords, const HnswRunCfgPtr& runCfg)
+		: coords(coords), dim(runCfg->refType->cfg->dim), runCfg(runCfg) {}
 
 	template<typename Coord>
 	inline void HnswInterRunner<Coord>::insert(const ConstIter<Coord>& query) {
@@ -461,8 +459,8 @@ namespace chm {
 	}
 
 	template<typename Coord>
-	inline HnswInterRunner<Coord>::HnswInterRunner(const HnswCfgPtr& algoCfg, const ICoordsPtr<Coord>& coords, const HnswRunCfgPtr& runCfg)
-		: HnswRunner<Coord>(algoCfg, coords, runCfg), curIdx(0), err(nullptr), refAlgo(nullptr), refTime(0), subAlgo(nullptr), subTime(0) {}
+	inline HnswInterRunner<Coord>::HnswInterRunner(const ICoordsPtr<Coord>& coords, const HnswRunCfgPtr& runCfg)
+		: HnswRunner<Coord>(coords, runCfg), curIdx(0), err(nullptr), refAlgo(nullptr), refTime(0), subAlgo(nullptr), subTime(0) {}
 
 	template<typename Coord>
 	inline IBuildResPtr HnswInterRunner<Coord>::build() {
@@ -478,11 +476,11 @@ namespace chm {
 		Timer timer{};
 
 		timer.start();
-		this->refAlgo = createHnswIntermediate<Coord>(this->algoCfg, this->runCfg->refType);
+		this->refAlgo = createHnswInter<Coord>(this->runCfg->refType);
 		res->refRes.init = timer.stop();
 
 		timer.start();
-		this->subAlgo = createHnswIntermediate<Coord>(this->algoCfg, this->runCfg->subType);
+		this->subAlgo = createHnswInter<Coord>(this->runCfg->subType);
 		res->subRes.init = timer.stop();
 
 		ProgressBar bar("Inserting elements.", len);
@@ -491,7 +489,7 @@ namespace chm {
 			this->curIdx = i;
 			this->refTime = chr::microseconds(0);
 			this->subTime = chr::microseconds(0);
-			this->insert(coords.cbegin() + i * this->algoCfg->dim);
+			this->insert(coords.cbegin() + i * this->dim);
 
 			res->refRes.queryTime.queries.push_back(this->refTime);
 			res->subRes.queryTime.queries.push_back(this->subTime);
@@ -517,7 +515,7 @@ namespace chm {
 		const SearchCfgPtr<Coord>& cfg, const FoundNeighborsPtr<Coord>& trueNeighbors
 	) {
 		const auto queryCoords = cfg->coords->get();
-		const auto queryCount = queryCoords->size() / this->algoCfg->dim;
+		const auto queryCount = cfg->coords->getCount(this->dim);
 		auto res = std::make_shared<InterSearchRes<Coord>>(queryCount);
 		ProgressBar bar(progressBarTitleANN(cfg->ef), queryCount);
 
@@ -525,7 +523,7 @@ namespace chm {
 			this->curIdx = i;
 			this->refTime = chr::microseconds(0);
 			this->subTime = chr::microseconds(0);
-			this->searchANN(queryCoords->cbegin() + i * this->algoCfg->dim, cfg->ef, cfg->K, res);
+			this->searchANN(queryCoords->cbegin() + i * this->dim, cfg->ef, cfg->K, res);
 
 			res->refRes.queryTime.queries.push_back(this->refTime);
 			res->subRes.queryTime.queries.push_back(this->subTime);
@@ -552,12 +550,12 @@ namespace chm {
 		totalTimer.start();
 
 		timer.start();
-		auto hnsw = createHnsw<Coord>(this->algoCfg, type);
+		auto hnsw = createHnsw<Coord>(type);
 		res.init = timer.stop();
 
 		for(size_t i = 0; i < len; i++) {
 			timer.start();
-			hnsw->insert(coords.cbegin() + i * this->algoCfg->dim);
+			hnsw->insert(coords.cbegin() + i * this->dim);
 			const auto insTime = timer.stop();
 
 			res.queryTime.queries.push_back(insTime);
@@ -574,7 +572,7 @@ namespace chm {
 		IHnswPtr<Coord>& hnsw, const SearchCfgPtr<Coord>& searchCfg, SeqAlgoSearchRes<Coord>& res, const FoundNeighborsPtr<Coord>& trueNeighbors
 	) {
 		const auto queryCoords = searchCfg->coords->get();
-		const auto queryCount = queryCoords->size() / this->algoCfg->dim;
+		const auto queryCount = searchCfg->coords->getCount(this->dim);
 		ProgressBar bar(progressBarTitleANN(searchCfg->ef), queryCount);
 		Timer timer{};
 		Timer totalTimer{};
@@ -583,7 +581,7 @@ namespace chm {
 		for(size_t i = 0; i < queryCount; i++) {
 			timer.start();
 			hnsw->knnSearch(
-				queryCoords->cbegin() + i * this->algoCfg->dim, searchCfg->K, searchCfg->ef, res.neighbors.indices[i], res.neighbors.distances[i]
+				queryCoords->cbegin() + i * this->dim, searchCfg->K, searchCfg->ef, res.neighbors.indices[i], res.neighbors.distances[i]
 			);
 			const auto searchTime = timer.stop();
 
@@ -597,8 +595,7 @@ namespace chm {
 	}
 
 	template<typename Coord>
-	inline HnswSeqRunner<Coord>::HnswSeqRunner(const HnswCfgPtr& algoCfg, const ICoordsPtr<Coord>& coords, const HnswRunCfgPtr& runCfg)
-		: HnswRunner<Coord>(algoCfg, coords, runCfg) {}
+	inline HnswSeqRunner<Coord>::HnswSeqRunner(const ICoordsPtr<Coord>& coords, const HnswRunCfgPtr& runCfg) : HnswRunner<Coord>(coords, runCfg) {}
 
 	template<typename Coord>
 	inline IBuildResPtr HnswSeqRunner<Coord>::build() {
@@ -623,7 +620,7 @@ namespace chm {
 
 	template<typename Coord>
 	inline SeqSearchResPtr<Coord> HnswSeqRunner<Coord>::searchSeq(const SearchCfgPtr<Coord>& cfg, const FoundNeighborsPtr<Coord>& trueNeighbors) {
-		auto res = std::make_shared<SeqSearchRes<Coord>>(cfg->coords->get()->size() / this->algoCfg->dim);
+		auto res = std::make_shared<SeqSearchRes<Coord>>(cfg->coords->getCount(this->dim));
 		this->search(this->refAlgo, cfg, res->refRes, trueNeighbors);
 		this->search(this->subAlgo, cfg, res->subRes, trueNeighbors);
 		res->runTests();
@@ -631,11 +628,9 @@ namespace chm {
 	}
 
 	template<typename Coord>
-	HnswRunnerPtr<Coord> createRunner(
-		const HnswCfgPtr& algoCfg, const bool checkIntermediates, const ICoordsPtr<Coord>& coords, const HnswRunCfgPtr& runCfg
-	) {
+	HnswRunnerPtr<Coord> createRunner(const bool checkIntermediates, const ICoordsPtr<Coord>& coords, const HnswRunCfgPtr& runCfg) {
 		if(checkIntermediates)
-			return std::make_shared<HnswInterRunner<Coord>>(algoCfg, coords, runCfg);
-		return std::make_shared<HnswSeqRunner<Coord>>(algoCfg, coords, runCfg);
+			return std::make_shared<HnswInterRunner<Coord>>(coords, runCfg);
+		return std::make_shared<HnswSeqRunner<Coord>>(coords, runCfg);
 	}
 }

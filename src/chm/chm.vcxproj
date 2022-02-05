@@ -25,6 +25,7 @@
     <ClInclude Include="IHnsw.hpp" />
     <ClInclude Include="Node.hpp" />
     <ClInclude Include="Unique.hpp" />
+    <ClInclude Include="IVisitedSet.hpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

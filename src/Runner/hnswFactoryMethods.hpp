@@ -11,96 +11,98 @@ namespace chm {
 	};
 
 	struct HnswType : public Unique {
+		const HnswCfgPtr cfg;
 		const bool isIntermediate;
 		const HnswKind kind;
+		const HnswSettingsPtr settings;
 
-		HnswType(const bool isIntermediate, const HnswKind kind);
+		HnswType(const HnswCfgPtr& cfg, const bool isIntermediate, const HnswKind kind, const HnswSettingsPtr& settings = nullptr);
 	};
 
 	using HnswTypePtr = std::shared_ptr<HnswType>;
 
 	template<typename Coord>
-	IHnswIntermediatePtr<Coord> createHnswIntermediate(const HnswCfgPtr& cfg);
+	IHnswIntermediatePtr<Coord> createChmHnswInter(const HnswTypePtr& type);
 
 	template<typename Coord, bool useEuclid>
-	IHnswIntermediatePtr<Coord> createHnswIntermediate(const HnswCfgPtr& cfg);
+	IHnswIntermediatePtr<Coord> createChmHnswInter(const HnswTypePtr& type);
 
 	template<typename Coord, typename Idx>
-	IHnswIntermediatePtr<Coord> createHnswIntermediate(const HnswCfgPtr& cfg);
-
-	template<typename Coord>
-	IHnswIntermediatePtr<Coord> createHnswIntermediate(const HnswCfgPtr& cfg, const HnswTypePtr& type);
+	IHnswIntermediatePtr<Coord> createChmHnswInter(const HnswTypePtr& type);
 
 	template<typename Coord, typename Idx>
-	IHnswPtr<Coord> createHnsw(const HnswCfgPtr& cfg);
+	IHnswPtr<Coord> createChmHnsw(const HnswTypePtr& type);
 
 	template<typename Coord>
-	IHnswPtr<Coord> createHnsw(const HnswCfgPtr& cfg, const HnswTypePtr& type);
+	IHnswPtr<Coord> createHnsw(const HnswTypePtr& type);
 
 	template<typename Coord>
-	IHnswIntermediatePtr<Coord> createHnswIntermediate(const HnswCfgPtr& cfg) {
-		if(cfg->useEuclid)
-			return createHnswIntermediate<Coord, true>(cfg);
-		return createHnswIntermediate<Coord, false>(cfg);
+	IHnswIntermediatePtr<Coord> createHnswInter(const HnswTypePtr& type);
+
+	template<typename Coord>
+	IHnswIntermediatePtr<Coord> createChmHnswInter(const HnswTypePtr& type) {
+		if(type->cfg->useEuclid)
+			return createChmHnswInter<Coord, true>(type);
+		return createChmHnswInter<Coord, false>(type);
 	}
 
 	template<typename Coord, bool useEuclid>
-	IHnswIntermediatePtr<Coord> createHnswIntermediate(const HnswCfgPtr& cfg) {
-		if(isWideEnough<unsigned short>(cfg->maxNodeCount))
-			return std::make_shared<HnswInterImpl<Coord, unsigned short, useEuclid>>(cfg);
-		if(isWideEnough<unsigned int>(cfg->maxNodeCount))
-			return std::make_shared<HnswInterImpl<Coord, unsigned int, useEuclid>>(cfg);
-		return std::make_shared<HnswInterImpl<Coord, size_t, useEuclid>>(cfg);
+	IHnswIntermediatePtr<Coord> createChmHnswInter(const HnswTypePtr& type) {
+		if(isWideEnough<unsigned short>(type->cfg->maxNodeCount))
+			return std::make_shared<HnswInterImpl<Coord, unsigned short, useEuclid>>(type->cfg, type->settings);
+		if(isWideEnough<unsigned int>(type->cfg->maxNodeCount))
+			return std::make_shared<HnswInterImpl<Coord, unsigned int, useEuclid>>(type->cfg, type->settings);
+		return std::make_shared<HnswInterImpl<Coord, size_t, useEuclid>>(type->cfg, type->settings);
 	}
 
 	template<typename Coord, typename Idx>
-	IHnswIntermediatePtr<Coord> createHnswIntermediate(const HnswCfgPtr& cfg) {
-		if(cfg->useEuclid)
-			return std::make_shared<HnswInterImpl<Coord, Idx, true>>(cfg);
-		return std::make_shared<HnswInterImpl<Coord, Idx, false>>(cfg);
+	IHnswIntermediatePtr<Coord> createChmHnswInter(const HnswTypePtr& type) {
+		if(type->cfg->useEuclid)
+			return std::make_shared<HnswInterImpl<Coord, Idx, true>>(type->cfg, type->settings);
+		return std::make_shared<HnswInterImpl<Coord, Idx, false>>(type->cfg, type->settings);
+	}
+
+	template<typename Coord, typename Idx>
+	IHnswPtr<Coord> createChmHnsw(const HnswTypePtr& type) {
+		if(type->cfg->useEuclid)
+			return std::make_shared<Hnsw<Coord, Idx, true>>(type->cfg, type->settings);
+		return std::make_shared<Hnsw<Coord, Idx, false>>(type->cfg, type->settings);
 	}
 
 	template<typename Coord>
-	IHnswIntermediatePtr<Coord> createHnswIntermediate(const HnswCfgPtr& cfg, const HnswTypePtr& type) {
+	IHnswPtr<Coord> createHnsw(const HnswTypePtr& type) {
+		if(type->isIntermediate)
+			return createHnswInter<Coord>(type);
+
 		switch(type->kind) {
 			case HnswKind::CHM_AUTO:
-				return createHnswIntermediate<Coord>(cfg);
+				return createHnsw<Coord>(type->cfg, type->settings);
 			case HnswKind::CHM_INT:
-				return createHnswIntermediate<Coord, unsigned int>(cfg);
+				return createChmHnsw<Coord, unsigned int>(type);
 			case HnswKind::CHM_SHORT:
-				return createHnswIntermediate<Coord, unsigned short>(cfg);
+				return createChmHnsw<Coord, unsigned short>(type);
 			case HnswKind::CHM_SIZE_T:
-				return createHnswIntermediate<Coord, size_t>(cfg);
+				return createChmHnsw<Coord, size_t>(type);
 			case HnswKind::HNSWLIB:
-				return std::make_shared<HnswlibInterImpl<Coord>>(cfg);
+				return std::make_shared<HnswlibWrapper<Coord>>(type->cfg);
 			default:
 				throw std::runtime_error("Unknown HnswKind value.");
 		}
 	}
 
-	template<typename Coord, typename Idx>
-	IHnswPtr<Coord> createHnsw(const HnswCfgPtr& cfg) {
-		if(cfg->useEuclid)
-			return std::make_shared<Hnsw<Coord, Idx, true>>(cfg);
-		return std::make_shared<Hnsw<Coord, Idx, false>>(cfg);
-	}
-
 	template<typename Coord>
-	IHnswPtr<Coord> createHnsw(const HnswCfgPtr& cfg, const HnswTypePtr& type) {
-		if(type->isIntermediate)
-			return createHnswIntermediate<Coord>(cfg, type);
-
+	IHnswIntermediatePtr<Coord> createHnswInter(const HnswTypePtr& type) {
 		switch(type->kind) {
 			case HnswKind::CHM_AUTO:
-				return createHnsw<Coord>(cfg);
+				return createChmHnswInter<Coord>(type);
 			case HnswKind::CHM_INT:
-				return createHnsw<Coord, unsigned int>(cfg);
+				return createChmHnswInter<Coord, unsigned int>(type);
 			case HnswKind::CHM_SHORT:
-				return createHnsw<Coord, unsigned short>(cfg);
+				return createChmHnswInter<Coord, unsigned short>(type);
 			case HnswKind::CHM_SIZE_T:
-				return createHnsw<Coord, size_t>(cfg);
+				return createChmHnswInter<Coord, size_t>(type);
 			case HnswKind::HNSWLIB:
-				return std::make_shared<HnswlibWrapper<Coord>>(cfg);
+				return std::make_shared<HnswlibInterImpl<Coord>>(type->cfg);
 			default:
 				throw std::runtime_error("Unknown HnswKind value.");
 		}

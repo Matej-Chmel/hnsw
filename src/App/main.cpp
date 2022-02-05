@@ -11,11 +11,11 @@ constexpr auto ELEM_MAX = 1.f;
 constexpr auto ELEM_MIN = 0.f;
 constexpr size_t K = 10;
 constexpr size_t M = 16;
-constexpr size_t NODE_COUNT = 1000;
+constexpr size_t NODE_COUNT = 100000;
 constexpr size_t NODE_SEED = 1000;
-constexpr size_t QUERY_COUNT = 10;
+constexpr auto QUERY_COUNT = NODE_COUNT / 100;
 constexpr auto QUERY_SEED = NODE_SEED + 1;
-constexpr auto REF_ALGO = chm::HnswKind::HNSWLIB;
+constexpr auto REF_ALGO = chm::HnswKind::CHM_AUTO;
 constexpr auto SUB_ALGO = chm::HnswKind::CHM_AUTO;
 constexpr auto USE_EUCLID = true;
 constexpr auto USE_SIFT = false;
@@ -55,12 +55,16 @@ void run() {
 		fs::create_directories(outDir);
 
 	const auto nodes = getNodes<Coord>(datasetsDir);
+	const auto cfg = std::make_shared<HnswCfg>(DIM, EF_CONSTRUCTION, M, nodes->getCount(DIM), NODE_SEED, USE_EUCLID);
 	const auto runner = createRunner<Coord>(
-		std::make_shared<HnswCfg>(DIM, EF_CONSTRUCTION, M, nodes->getCount(DIM), NODE_SEED, USE_EUCLID),
 		CHECK_INTERMEDIATES, nodes,
 		std::make_shared<HnswRunCfg>(
-			std::make_shared<HnswType>(CHECK_INTERMEDIATES, REF_ALGO),
-			std::make_shared<HnswType>(CHECK_INTERMEDIATES, SUB_ALGO)
+			std::make_shared<HnswType>(
+				cfg, CHECK_INTERMEDIATES, REF_ALGO, std::make_shared<HnswSettings>(false)
+			),
+			std::make_shared<HnswType>(
+				cfg, CHECK_INTERMEDIATES, SUB_ALGO, std::make_shared<HnswSettings>(true)
+			)
 		)
 	);
 
