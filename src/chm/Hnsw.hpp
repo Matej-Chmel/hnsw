@@ -30,7 +30,7 @@ namespace chm {
 		using Node = Node<Coord, Idx>;
 
 		std::vector<Coord> coords;
-		IConnPtr<Idx> connections;
+		IConnPtr<Coord, Idx> connections;
 		const size_t dim;
 		std::unordered_map<Idx, Coord> distanceCache;
 		const bool distanceCacheEnabled;
@@ -44,12 +44,10 @@ namespace chm {
 		Idx nodeCount;
 		IVisitedSetPtr<Idx> visited;
 
-		void fillHeap(const ConstIter<Coord>& query, const ConstIter<Coord>& insertedQuery, const INeighborsPtr<Idx>& eConn, FarHeap& eNewConn);
+		void fillHeap(const ConstIter<Coord>& query, const ConstIter<Coord>& insertedQuery, FarHeap& eNewConn);
 		ConstIter<Coord> getCoords(const Idx idx) const;
 		Coord getDistance(const ConstIter<Coord>& node, const ConstIter<Coord>& query, const bool useCache = false, const Idx nodeIdx = 0);
-		INeighborsPtr<Idx> getNeighbors(const Idx idx, const size_t lc);
 		size_t getNewLevel();
-		void initConnections(const Idx idx, const size_t level);
 		void searchLowerLayer(const ConstIter<Coord>& query, Node& ep, const size_t ef, const size_t lc, FarHeap& W);
 		void searchUpperLayer(const ConstIter<Coord>& query, Node& resEp, const size_t lc);
 		void selectNeighborsHeuristic(FarHeap& outC, const size_t M);
@@ -74,13 +72,13 @@ namespace chm {
 
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline void Hnsw<Coord, Idx, useEuclid>::fillHeap(
-		const ConstIter<Coord>& query, const ConstIter<Coord>& insertedQuery, const INeighborsPtr<Idx>& eConn, FarHeap& eNewConn
+		const ConstIter<Coord>& query, const ConstIter<Coord>& insertedQuery, FarHeap& eNewConn
 	) {
 		eNewConn.clear();
-		eNewConn.reserve(eConn->len());
+		eNewConn.reserve(this->connections->len());
 		eNewConn.push(this->getDistance(insertedQuery, query), this->nodeCount);
 
-		for(const auto& idx : *eConn)
+		for(const auto& idx : *this->connections)
 			eNewConn.push(this->getDistance(this->getCoords(idx), query), idx);
 	}
 
@@ -114,22 +112,12 @@ namespace chm {
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
-	inline INeighborsPtr<Idx> Hnsw<Coord, Idx, useEuclid>::getNeighbors(const Idx idx, const size_t lc) {
-		return this->connections->getNeighbors(idx, lc);
-	}
-
-	template<typename Coord, typename Idx, bool useEuclid>
 	inline size_t Hnsw<Coord, Idx, useEuclid>::getNewLevel() {
 		std::uniform_real_distribution<double> dist(0.0, 1.0);
 
 		return size_t(
 			-std::log(dist(this->gen)) * this->mL
 		);
-	}
-
-	template<typename Coord, typename Idx, bool useEuclid>
-	inline void Hnsw<Coord, Idx, useEuclid>::initConnections(const Idx idx, const size_t level) {
-		this->connections->init(idx, level);
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
@@ -153,12 +141,12 @@ namespace chm {
 				cIdx = c.idx;
 			}
 
-			const auto& neighbors = this->getNeighbors(cIdx, lc);
+			this->connections->useNeighbors(cIdx, lc);
 
 			// Extract nearest from C.
 			C.pop();
 
-			for(const auto& eIdx : *neighbors) {
+			for(const auto& eIdx : *this->connections) {
 				if(this->visited->insert(eIdx)) {
 					const auto eDist = this->getDistance(this->getCoords(eIdx), query, true, eIdx);
 					bool shouldAdd{};
@@ -185,10 +173,10 @@ namespace chm {
 		size_t prevIdx{};
 
 		do {
-			const auto& neighbors = this->getNeighbors(resEp.idx, lc);
+			this->connections->useNeighbors(resEp.idx, lc);
 			prevIdx = resEp.idx;
 
-			for(const auto& cIdx : *neighbors) {
+			for(const auto& cIdx : *this->connections) {
 				const auto cDist = this->getDistance(this->getCoords(cIdx), query, true, cIdx);
 
 				if(cDist < resEp.dist) {
@@ -239,7 +227,7 @@ namespace chm {
 		: dim(cfg->dim), distanceCacheEnabled(settings->distanceCacheEnabled), efConstruction(cfg->efConstruction), entryIdx(0), entryLevel(0),
 		M(cfg->M), mL(1.0 / std::log(1.0 * this->M)), Mmax0(this->M * 2), nodeCount(0) {
 
-		this->connections = createConn<Idx>(settings->useConnLayer0, cfg->maxNodeCount, this->M, this->Mmax0);
+		this->connections = createConn<Coord, Idx>(settings->useConnLayer0, cfg->maxNodeCount, this->M, this->Mmax0);
 		this->coords.resize(this->dim * cfg->maxNodeCount);
 		this->gen.seed(cfg->seed);
 		this->visited = createVisitedSet<Idx>(settings->useBitset);
@@ -252,7 +240,7 @@ namespace chm {
 		if(!this->nodeCount) {
 			this->entryLevel = this->getNewLevel();
 			this->nodeCount = 1;
-			this->initConnections(this->entryIdx, this->entryLevel);
+			this->connections->init(this->entryIdx, this->entryLevel);
 			return;
 		}
 
@@ -263,7 +251,7 @@ namespace chm {
 		const auto L = this->entryLevel;
 		const auto l = this->getNewLevel();
 
-		this->initConnections(this->nodeCount, l);
+		this->connections->init(this->nodeCount, l);
 
 		for(auto lc = L; lc > l; lc--)
 			this->searchUpperLayer(query, ep, lc);
@@ -273,22 +261,22 @@ namespace chm {
 			this->searchLowerLayer(query, ep, this->efConstruction, lc, candidates);
 			this->selectNeighborsHeuristic(candidates, this->M);
 
-			auto neighbors = this->getNeighbors(this->nodeCount, lc);
-			candidates.extractTo(neighbors);
+			this->connections->useNeighbors(this->nodeCount, lc);
+			this->connections->fillFrom(candidates);
 
 			// ep = nearest from candidates
 			ep = Node(candidates.top());
 			const auto layerMmax = !lc ? this->Mmax0 : this->M;
 
-			for(const auto& eIdx : *neighbors) {
-				auto eConn = this->getNeighbors(eIdx, lc);
+			for(const auto& eIdx : *this->connections) {
+				this->connections->useNeighbors(eIdx, lc);
 
-				if(eConn->len() < layerMmax)
-					eConn->push(this->nodeCount);
+				if(this->connections->len() < layerMmax)
+					this->connections->push(this->nodeCount);
 				else {
-					this->fillHeap(this->getCoords(eIdx), query, eConn, candidates);
+					this->fillHeap(this->getCoords(eIdx), query, candidates);
 					this->selectNeighborsHeuristic(candidates, layerMmax);
-					candidates.extractTo(eConn);
+					this->connections->fillFrom(candidates);
 				}
 			}
 

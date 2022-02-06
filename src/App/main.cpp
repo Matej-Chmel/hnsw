@@ -15,10 +15,10 @@ constexpr size_t NODE_COUNT = 100000;
 constexpr size_t NODE_SEED = 1000;
 constexpr auto QUERY_COUNT = std::max(1ULL, NODE_COUNT / 100);
 constexpr auto QUERY_SEED = NODE_SEED + 1;
-constexpr auto REF_ALGO = chm::HnswKind::CHM_AUTO;
+constexpr auto REF_ALGO = chm::HnswKind::HNSWLIB;
 constexpr auto SUB_ALGO = chm::HnswKind::CHM_AUTO;
 constexpr auto USE_EUCLID = true;
-constexpr auto USE_SIFT = false;
+constexpr auto USE_SIFT = true;
 
 template<typename Coord>
 chm::ICoordsPtr<Coord> getNodes(const fs::path& datasetsDir) {
@@ -60,7 +60,7 @@ void run() {
 		CHECK_INTERMEDIATES, nodes,
 		std::make_shared<HnswRunCfg>(
 			std::make_shared<HnswType>(
-				cfg, CHECK_INTERMEDIATES, REF_ALGO, std::make_shared<HnswSettings>(false, true, false)
+				cfg, CHECK_INTERMEDIATES, REF_ALGO, std::make_shared<HnswSettings>(false, true, true)
 			),
 			std::make_shared<HnswType>(
 				cfg, CHECK_INTERMEDIATES, SUB_ALGO, std::make_shared<HnswSettings>(false, true, true)

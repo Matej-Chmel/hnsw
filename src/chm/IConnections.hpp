@@ -1,135 +1,100 @@
 #pragma once
-#include "Unique.hpp"
+#include "Heap.hpp"
 
 namespace chm {
 	using IdxVec3D = std::vector<std::vector<std::vector<size_t>>>;
 	using IdxVec3DPtr = std::shared_ptr<IdxVec3D>;
 
-	template<typename Idx>
-	struct INeighbors : public Unique {
-		virtual ~INeighbors() = default;
-		virtual ConstIter<Idx> begin() const = 0;
-		virtual void clear() = 0;
-		virtual ConstIter<Idx> end() const = 0;
-		virtual size_t len() const = 0;
-		virtual void push(const Idx i) = 0;
-		virtual void reserve(const size_t capacity) = 0;
-	};
-
-	template<typename Idx>
-	using INeighborsPtr = std::shared_ptr<INeighbors<Idx>>;
-
-	template<typename Idx>
+	template<typename Coord, typename Idx>
 	struct IConnections : public Unique {
 		virtual ~IConnections() = default;
+		virtual Iter<Idx> begin() = 0;
+		virtual Iter<Idx> end() = 0;
+		virtual void fillFrom(FarHeap<Coord, Idx>& h) = 0;
 		virtual IdxVec3DPtr getConnections() = 0;
-		virtual INeighborsPtr<Idx> getNeighbors(const Idx idx, const size_t lc) = 0;
 		virtual void init(const Idx idx, const size_t level) = 0;
+		virtual size_t len() const = 0;
+		virtual void push(const Idx i) = 0;
+		virtual void useNeighbors(const Idx idx, const size_t lc) = 0;
 	};
 
-	template<typename Idx>
-	using IConnPtr = std::shared_ptr<IConnections<Idx>>;
+	template<typename Coord, typename Idx>
+	using IConnPtr = std::shared_ptr<IConnections<Coord, Idx>>;
 
-	template<typename Idx>
-	class Neighbors3D : public INeighbors<Idx> {
-		std::vector<Idx>* const v;
-
-	public:
-		ConstIter<Idx> begin() const override;
-		void clear() override;
-		ConstIter<Idx> end() const override;
-		size_t len() const override;
-		Neighbors3D(std::vector<Idx>* const v);
-		void push(const Idx i) override;
-		void reserve(const size_t capacity) override;
-	};
-
-	template<typename Idx>
-	class Connections3D : public IConnections<Idx> {
+	template<typename Coord, typename Idx>
+	class Connections3D : public IConnections<Coord, Idx> {
 		std::vector<std::vector<std::vector<Idx>>> c;
+		std::vector<Idx>* neighbors;
 		size_t nodeCount;
 
 	public:
+		Iter<Idx> begin() override;
 		Connections3D(const size_t maxNodeCount);
+		Iter<Idx> end() override;
+		void fillFrom(FarHeap<Coord, Idx>& h) override;
 		IdxVec3DPtr getConnections() override;
-		INeighborsPtr<Idx> getNeighbors(const Idx idx, const size_t lc) override;
 		void init(const Idx idx, const size_t level) override;
-	};
-
-	template<typename Idx>
-	class NeighborsLayer0 : public INeighbors<Idx> {
-		Iter<Idx> count;
-		Iter<Idx> start;
-
-	public:
-		ConstIter<Idx> begin() const override;
-		void clear() override;
-		ConstIter<Idx> end() const override;
 		size_t len() const override;
-		NeighborsLayer0(const Iter<Idx>& count, const Iter<Idx>& start);
 		void push(const Idx i) override;
-		void reserve(const size_t capacity) override;
+		void useNeighbors(const Idx idx, const size_t lc) override;
 	};
 
-	template<typename Idx>
-	class ConnLayer0 : public IConnections<Idx> {
+	template<typename Coord, typename Idx>
+	class ConnLayer0 : public IConnections<Coord, Idx> {
 		std::vector<Idx> layer0;
 		std::vector<Idx> levels;
 		const size_t maxLen;
 		const size_t maxLen0;
+		Iter<Idx> neighborCount;
+		Iter<Idx> neighborStart;
 		size_t nodeCount;
 		std::vector<std::vector<Idx>> upperLayers;
 
 	public:
+		Iter<Idx> begin() override;
 		ConnLayer0(const size_t maxNodeCount, const size_t Mmax, const size_t Mmax0);
+		Iter<Idx> end() override;
+		void fillFrom(FarHeap<Coord, Idx>& h) override;
 		IdxVec3DPtr getConnections() override;
-		INeighborsPtr<Idx> getNeighbors(const Idx idx, const size_t lc) override;
 		void init(const Idx idx, const size_t level) override;
+		size_t len() const override;
+		void push(const Idx i) override;
+		void useNeighbors(const Idx idx, const size_t lc) override;
 	};
 
-	template<typename Idx>
-	IConnPtr<Idx> createConn(const bool useConnLayer0, const size_t maxNodeCount, const size_t Mmax, const size_t Mmax0);
+	template<typename Coord, typename Idx>
+	IConnPtr<Coord, Idx> createConn(const bool useConnLayer0, const size_t maxNodeCount, const size_t Mmax, const size_t Mmax0);
 
-	template<typename Idx>
-	inline ConstIter<Idx> Neighbors3D<Idx>::begin() const {
-		return this->v->begin();
+	template<typename Coord, typename Idx>
+	inline Iter<Idx> Connections3D<Coord, Idx>::begin() {
+		return this->neighbors->begin();
 	}
 
-	template<typename Idx>
-	inline void Neighbors3D<Idx>::clear() {
-		this->v->clear();
-	}
-
-	template<typename Idx>
-	inline ConstIter<Idx> Neighbors3D<Idx>::end() const {
-		return this->v->end();
-	}
-
-	template<typename Idx>
-	inline size_t Neighbors3D<Idx>::len() const {
-		return this->v->size();
-	}
-
-	template<typename Idx>
-	inline Neighbors3D<Idx>::Neighbors3D(std::vector<Idx>* const v) : v(v) {}
-
-	template<typename Idx>
-	inline void Neighbors3D<Idx>::push(const Idx i) {
-		this->v->emplace_back(i);
-	}
-
-	template<typename Idx>
-	inline void Neighbors3D<Idx>::reserve(const size_t capacity) {
-		this->v->reserve(capacity);
-	}
-
-	template<typename Idx>
-	inline Connections3D<Idx>::Connections3D(const size_t maxNodeCount) : nodeCount(0) {
+	template<typename Coord, typename Idx>
+	inline Connections3D<Coord, Idx>::Connections3D(const size_t maxNodeCount) : nodeCount(0) {
 		this->c.resize(maxNodeCount);
 	}
 
-	template<typename Idx>
-	inline IdxVec3DPtr Connections3D<Idx>::getConnections() {
+	template<typename Coord, typename Idx>
+	inline Iter<Idx> Connections3D<Coord, Idx>::end() {
+		return this->neighbors->end();
+	}
+
+	template<typename Coord, typename Idx>
+	inline void Connections3D<Coord, Idx>::fillFrom(FarHeap<Coord, Idx>& h) {
+		this->neighbors->clear();
+		this->neighbors->reserve(h.len());
+
+		while(h.len() > 1) {
+			this->neighbors->emplace_back(h.top().idx);
+			h.pop();
+		}
+
+		this->neighbors->emplace_back(h.top().idx);
+	}
+
+	template<typename Coord, typename Idx>
+	inline IdxVec3DPtr Connections3D<Coord, Idx>::getConnections() {
 		auto res = std::make_shared<IdxVec3D>();
 		auto& r = *res;
 		r.resize(this->nodeCount);
@@ -154,59 +119,60 @@ namespace chm {
 		return res;
 	}
 
-	template<typename Idx>
-	inline INeighborsPtr<Idx> Connections3D<Idx>::getNeighbors(const Idx idx, const size_t lc) {
-		return std::make_shared<Neighbors3D<Idx>>(&this->c[idx][lc]);
-	}
-
-	template<typename Idx>
-	inline void Connections3D<Idx>::init(const Idx idx, const size_t level) {
+	template<typename Coord, typename Idx>
+	inline void Connections3D<Coord, Idx>::init(const Idx idx, const size_t level) {
 		this->c[idx].resize(level + 1);
 		this->nodeCount++;
 	}
 
-	template<typename Idx>
-	inline ConstIter<Idx> NeighborsLayer0<Idx>::begin() const {
-		return this->start;
+	template<typename Coord, typename Idx>
+	inline size_t Connections3D<Coord, Idx>::len() const {
+		return this->neighbors->size();
 	}
 
-	template<typename Idx>
-	inline void NeighborsLayer0<Idx>::clear() {
-		*this->count = 0;
+	template<typename Coord, typename Idx>
+	inline void Connections3D<Coord, Idx>::push(const Idx i) {
+		this->neighbors->emplace_back(i);
 	}
 
-	template<typename Idx>
-	inline ConstIter<Idx> NeighborsLayer0<Idx>::end() const {
-		return this->start + *this->count;
+	template<typename Coord, typename Idx>
+	inline void Connections3D<Coord, Idx>::useNeighbors(const Idx idx, const size_t lc) {
+		this->neighbors = &this->c[idx][lc];
 	}
 
-	template<typename Idx>
-	inline size_t NeighborsLayer0<Idx>::len() const {
-		return size_t(*this->count);
+	template<typename Coord, typename Idx>
+	inline Iter<Idx> ConnLayer0<Coord, Idx>::begin() {
+		return this->neighborStart;
 	}
 
-	template<typename Idx>
-	inline NeighborsLayer0<Idx>::NeighborsLayer0(const Iter<Idx>& count, const Iter<Idx>& start) : count(count), start(start) {}
-
-	template<typename Idx>
-	inline void NeighborsLayer0<Idx>::push(const Idx i) {
-		*(this->start + *this->count) = i;
-		(*this->count)++;
-	}
-
-	template<typename Idx>
-	inline void NeighborsLayer0<Idx>::reserve(const size_t) {}
-
-	template<typename Idx>
-	inline ConnLayer0<Idx>::ConnLayer0(const size_t maxNodeCount, const size_t Mmax, const size_t Mmax0)
+	template<typename Coord, typename Idx>
+	inline ConnLayer0<Coord, Idx>::ConnLayer0(const size_t maxNodeCount, const size_t Mmax, const size_t Mmax0)
 		: maxLen(Mmax + 1), maxLen0(Mmax0 + 1), nodeCount(0) {
 		this->layer0.resize(maxNodeCount * (this->maxLen0), 0);
 		this->levels.resize(maxNodeCount);
 		this->upperLayers.resize(maxNodeCount);
 	}
 
-	template<typename Idx>
-	inline IdxVec3DPtr ConnLayer0<Idx>::getConnections() {
+	template<typename Coord, typename Idx>
+	inline Iter<Idx> ConnLayer0<Coord, Idx>::end() {
+		return this->neighborStart + *this->neighborCount;
+	}
+
+	template<typename Coord, typename Idx>
+	inline void ConnLayer0<Coord, Idx>::fillFrom(FarHeap<Coord, Idx>& h) {
+		const auto lastIdx = h.len() - 1;
+		*this->neighborCount = Idx(h.len());
+
+		for(size_t i = 0; i < lastIdx; i++) {
+			*(this->neighborStart + i) = h.top().idx;
+			h.pop();
+		}
+
+		*(this->neighborStart + lastIdx) = h.top().idx;
+	}
+
+	template<typename Coord, typename Idx>
+	inline IdxVec3DPtr ConnLayer0<Coord, Idx>::getConnections() {
 		auto res = std::make_shared<IdxVec3D>();
 		auto& r = *res;
 		r.resize(this->nodeCount);
@@ -217,32 +183,21 @@ namespace chm {
 			nodeLayers.resize(nodeLayersLen);
 
 			for(size_t level = 0; level < nodeLayersLen; level++) {
-				const auto neighbors = this->getNeighbors(i, level);
-				auto& resNeighbors = nodeLayers[level];
-				resNeighbors.reserve(neighbors->len());
+				this->useNeighbors(i, level);
 
-				for(const auto& n : *neighbors)
-					resNeighbors.emplace_back(n);
+				auto& neighbors = nodeLayers[level];
+				neighbors.reserve(this->len());
+
+				for(const auto& n : *this)
+					neighbors.emplace_back(n);
 			}
 		}
 
 		return res;
 	}
 
-	template<typename Idx>
-	inline INeighborsPtr<Idx> ConnLayer0<Idx>::getNeighbors(const Idx idx, const size_t lc) {
-		Iter<Idx> count;
-
-		if(lc)
-			count = this->upperLayers[idx].begin() + this->maxLen * (lc - 1);
-		else
-			count = this->layer0.begin() + this->maxLen0 * idx;
-
-		return std::make_shared<NeighborsLayer0<Idx>>(count, count + 1);
-	}
-
-	template<typename Idx>
-	inline void ConnLayer0<Idx>::init(const Idx idx, const size_t level) {
+	template<typename Coord, typename Idx>
+	inline void ConnLayer0<Coord, Idx>::init(const Idx idx, const size_t level) {
 		this->levels[idx] = level;
 		this->nodeCount++;
 
@@ -250,10 +205,27 @@ namespace chm {
 			this->upperLayers[idx].resize(this->maxLen * level, 0);
 	}
 
-	template<typename Idx>
-	IConnPtr<Idx> createConn(const bool useConnLayer0, const size_t maxNodeCount, const size_t Mmax, const size_t Mmax0) {
+	template<typename Coord, typename Idx>
+	inline size_t ConnLayer0<Coord, Idx>::len() const {
+		return *this->neighborCount;
+	}
+
+	template<typename Coord, typename Idx>
+	inline void ConnLayer0<Coord, Idx>::push(const Idx i) {
+		*(this->neighborStart + *this->neighborCount) = i;
+		(*this->neighborCount)++;
+	}
+
+	template<typename Coord, typename Idx>
+	inline void ConnLayer0<Coord, Idx>::useNeighbors(const Idx idx, const size_t lc) {
+		this->neighborCount = lc ? this->upperLayers[idx].begin() + this->maxLen * (lc - 1) : this->layer0.begin() + this->maxLen0 * idx;
+		this->neighborStart = this->neighborCount + 1;
+	}
+
+	template<typename Coord, typename Idx>
+	IConnPtr<Coord, Idx> createConn(const bool useConnLayer0, const size_t maxNodeCount, const size_t Mmax, const size_t Mmax0) {
 		if(useConnLayer0)
-			return std::make_shared<ConnLayer0<Idx>>(maxNodeCount, Mmax, Mmax0);
-		return std::make_shared<Connections3D<Idx>>(maxNodeCount);
+			return std::make_shared<ConnLayer0<Coord, Idx>>(maxNodeCount, Mmax, Mmax0);
+		return std::make_shared<Connections3D<Coord, Idx>>(maxNodeCount);
 	}
 }
