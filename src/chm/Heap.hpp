@@ -1,7 +1,7 @@
 #pragma once
 #include <algorithm>
 #include "Node.hpp"
-#include "Unique.hpp"
+#include "IConnections.hpp"
 
 namespace chm {
 	template<typename Coord, typename Idx, class Comparator>
@@ -19,7 +19,7 @@ namespace chm {
 		ConstIter<Node> begin() const noexcept;
 		void clear();
 		ConstIter<Node> end() const noexcept;
-		void extractTo(std::vector<Idx>& v);
+		void extractTo(const INeighborsPtr<Idx>& n);
 		Heap() = default;
 		Heap(const Node& ep);
 		template<class C> Heap(Heap<Coord, Idx, C>& o);
@@ -63,16 +63,16 @@ namespace chm {
 	}
 
 	template<typename Coord, typename Idx, class Comparator>
-	inline void Heap<Coord, Idx, Comparator>::extractTo(std::vector<Idx>& v) {
-		v.clear();
-		v.reserve(this->len());
+	inline void Heap<Coord, Idx, Comparator>::extractTo(const INeighborsPtr<Idx>& n) {
+		n->clear();
+		n->reserve(this->len());
 
 		while(this->len() > 1) {
-			v.emplace_back(this->top().idx);
+			n->push(this->top().idx);
 			this->pop();
 		}
 
-		v.emplace_back(this->top().idx);
+		n->push(this->top().idx);
 	}
 
 	template<typename Coord, typename Idx, class Comparator>

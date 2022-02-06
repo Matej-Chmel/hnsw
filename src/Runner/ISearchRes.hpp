@@ -23,6 +23,7 @@ namespace chm {
 		QueryTime queryTime;
 		float recall;
 
+		virtual ~AlgoSearchRes() = default;
 		AlgoSearchRes(const size_t queryCount);
 		void calcRecall(Indices2D& correctIndices);
 		virtual void print(std::ostream& s, const std::string& title) const;
@@ -48,6 +49,7 @@ namespace chm {
 		bool neighborLengthsPassed;
 		bool queryCountPassed;
 
+		virtual ~ISearchRes() = default;
 		virtual void print(std::ostream& s) const override;
 		void runTests() override;
 	};
@@ -77,7 +79,7 @@ namespace chm {
 	struct SeqAlgoSearchRes : public AlgoSearchRes<Coord> {
 		chr::microseconds total;
 
-		virtual void print(std::ostream& s, const std::string& title) const;
+		void print(std::ostream& s, const std::string& title) const;
 		SeqAlgoSearchRes(const size_t queryCount);
 	};
 

@@ -11,6 +11,7 @@ namespace chm {
 	std::string elapsedTimeToStr(const chr::microseconds& elapsed);
 
 	struct IRunRes : public Unique {
+		virtual ~IRunRes() = default;
 		virtual void print(std::ostream& s) const = 0;
 		virtual void runTests() = 0;
 		virtual void write(const fs::path& outDir) const;
@@ -30,6 +31,7 @@ namespace chm {
 		chr::microseconds init;
 		QueryTime queryTime;
 
+		virtual ~AlgoBuildRes() = default;
 		AlgoBuildRes(const size_t nodeCount);
 		virtual void print(std::ostream& s, const std::string& title) const;
 	};
@@ -55,6 +57,7 @@ namespace chm {
 		bool neighborLengthsPassed;
 		bool nodeCountPassed;
 
+		virtual ~IBuildRes() = default;
 		virtual void print(std::ostream& s) const override;
 		void runTests() override;
 		virtual void write(const fs::path& outDir) const override;

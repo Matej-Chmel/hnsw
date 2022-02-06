@@ -218,7 +218,8 @@ namespace chm {
 			return;
 		}
 
-		this->hnsw->distancesCache.clear();
+		if(this->hnsw->distanceCacheEnabled)
+			this->hnsw->distanceCache.clear();
 
 		this->local.ep = Node(
 			this->hnsw->getDistance(this->hnsw->getCoords(this->hnsw->entryIdx), query, true, this->hnsw->entryIdx),
@@ -297,18 +298,18 @@ namespace chm {
 
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline void HnswInterImpl<Coord, Idx, useEuclid>::connect(const size_t lc) {
-		auto& neighbors = this->hnsw->getNeighbors(this->hnsw->nodeCount, lc);
+		auto neighbors = this->hnsw->getNeighbors(this->hnsw->nodeCount, lc);
 		this->local.candidates.extractTo(neighbors);
 
 		// ep = nearest from candidates
 		this->local.ep = Node(this->local.candidates.top());
 		const auto layerMmax = !lc ? this->hnsw->Mmax0 : this->hnsw->M;
 
-		for(const auto& eIdx : neighbors) {
-			auto& eConn = this->hnsw->getNeighbors(eIdx, lc);
+		for(const auto& eIdx : *neighbors) {
+			auto eConn = this->hnsw->getNeighbors(eIdx, lc);
 
-			if(eConn.size() < layerMmax)
-				eConn.push_back(this->hnsw->nodeCount);
+			if(eConn->len() < layerMmax)
+				eConn->push(this->hnsw->nodeCount);
 			else {
 				this->hnsw->fillHeap(this->hnsw->getCoords(eIdx), this->local.query, eConn, this->local.candidates);
 				this->hnsw->selectNeighborsHeuristic(this->local.candidates, layerMmax);
@@ -319,13 +320,13 @@ namespace chm {
 
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline VecPtr<size_t> HnswInterImpl<Coord, Idx, useEuclid>::getNeighborsForNode(const size_t nodeIdx, const size_t lc) const {
-		const auto& neighbors = this->hnsw->getNeighbors(Idx(nodeIdx), Idx(lc));
+		const auto neighbors = this->hnsw->getNeighbors(Idx(nodeIdx), Idx(lc));
 		auto res = std::make_shared<std::vector<size_t>>();
 		auto& r = *res;
 
-		r.reserve(neighbors.size());
+		r.reserve(neighbors->len());
 
-		for(const auto& neighborIdx : neighbors)
+		for(const auto& neighborIdx : *neighbors)
 			r.push_back(size_t(neighborIdx));
 
 		return res;
@@ -355,7 +356,9 @@ namespace chm {
 		this->local.K = K;
 		this->local.query = query;
 
-		this->hnsw->distancesCache.clear();
+		if(this->hnsw->distanceCacheEnabled)
+			this->hnsw->distanceCache.clear();
+
 		this->local.ep = Node(
 			this->hnsw->getDistance(this->hnsw->getCoords(this->hnsw->entryIdx), this->local.query, true, this->hnsw->entryIdx),
 			this->hnsw->entryIdx

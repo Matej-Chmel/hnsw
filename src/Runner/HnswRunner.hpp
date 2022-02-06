@@ -15,6 +15,7 @@ namespace chm {
 		HnswRunner(const ICoordsPtr<Coord>& coords, const HnswRunCfgPtr& runCfg);
 
 	public:
+		virtual ~HnswRunner() = default;
 		virtual IBuildResPtr build() = 0;
 		virtual ISearchResPtr<Coord> search(const SearchCfgPtr<Coord>& cfg, const FoundNeighborsPtr<Coord>& trueNeighbors) = 0;
 	};

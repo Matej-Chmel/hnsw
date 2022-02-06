@@ -5,6 +5,7 @@
 namespace chm {
 	template<typename Idx>
 	struct IVisitedSet : public Unique {
+		virtual ~IVisitedSet() = default;
 		virtual void prepare(const Idx count, const Idx entry) = 0;
 		virtual bool insert(const Idx i) = 0;
 	};

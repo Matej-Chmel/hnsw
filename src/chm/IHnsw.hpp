@@ -1,10 +1,7 @@
 #pragma once
-#include "Unique.hpp"
+#include "IConnections.hpp"
 
 namespace chm {
-	using IdxVec3D = std::vector<std::vector<std::vector<size_t>>>;
-	using IdxVec3DPtr = std::shared_ptr<IdxVec3D>;
-
 	template<typename Coord>
 	struct IHnsw : public Unique {
 		virtual ~IHnsw() = default;
@@ -36,8 +33,9 @@ namespace chm {
 	struct HnswSettings : public Unique {
 		const bool distanceCacheEnabled;
 		const bool useBitset;
+		const bool useConnLayer0;
 		
-		HnswSettings(const bool distanceCacheEnabled, const bool useBitset);
+		HnswSettings(const bool distanceCacheEnabled, const bool useBitset, const bool useConnLayer0);
 	};
 
 	using HnswSettingsPtr = std::shared_ptr<HnswSettings>;
@@ -46,6 +44,6 @@ namespace chm {
 		const size_t dim, const size_t efConstruction, const size_t M, const size_t maxNodeCount, const unsigned int seed, const bool useEuclid
 	) : dim(dim), efConstruction(efConstruction), M(M), maxNodeCount(maxNodeCount), seed(seed), useEuclid(useEuclid) {}
 
-	inline HnswSettings::HnswSettings(const bool distanceCacheEnabled, const bool useBitset)
-		: distanceCacheEnabled(distanceCacheEnabled), useBitset(useBitset) {}
+	inline HnswSettings::HnswSettings(const bool distanceCacheEnabled, const bool useBitset, const bool useConnLayer0)
+		: distanceCacheEnabled(distanceCacheEnabled), useBitset(useBitset), useConnLayer0(useConnLayer0) {}
 }
