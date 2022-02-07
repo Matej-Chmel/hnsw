@@ -25,10 +25,6 @@ namespace chm {
 
 		#endif
 
-		using FarHeap = FarHeap<Coord, Idx>;
-		using NearHeap = NearHeap<Coord, Idx>;
-		using Node = Node<Coord, Idx>;
-
 		std::vector<Coord> coords;
 		const size_t dim;
 		std::unordered_map<Idx, Coord> distanceCache;
@@ -36,21 +32,28 @@ namespace chm {
 		const size_t efConstruction;
 		Idx entryIdx;
 		size_t entryLevel;
+		Node<Coord, Idx> ep;
+		FarHeap<Coord, Idx> farHeap;
 		std::default_random_engine gen;
+		const bool keepHeaps;
 		const size_t M;
 		const double mL;
 		const size_t Mmax0;
+		NearHeap<Coord, Idx> nearHeap;
 		INeighborsPtr<Coord, Idx> neighbors;
 		Idx nodeCount;
 		IVisitedSetPtr<Idx> visited;
 
-		void fillHeap(const ConstIter<Coord>& query, const ConstIter<Coord>& insertedQuery, FarHeap& eNewConn);
+		void fillHeap(const ConstIter<Coord>& query, const ConstIter<Coord>& insertedQuery);
 		ConstIter<Coord> getCoords(const Idx idx) const;
 		Coord getDistance(const ConstIter<Coord>& node, const ConstIter<Coord>& query, const bool useCache = false, const Idx nodeIdx = 0);
 		size_t getNewLevel();
-		void searchLowerLayer(const ConstIter<Coord>& query, Node& ep, const size_t ef, const size_t lc, FarHeap& W);
-		void searchUpperLayer(const ConstIter<Coord>& query, Node& resEp, const size_t lc);
-		void selectNeighborsHeuristic(FarHeap& outC, const size_t M);
+		void reserveHeaps(const size_t ef);
+		void resetEp(const ConstIter<Coord>& query);
+		void searchLowerLayer(const ConstIter<Coord>& query, const size_t ef, const size_t lc);
+		void searchUpperLayer(const ConstIter<Coord>& query, const size_t lc);
+		void selectNeighborsHeuristic(const size_t M);
+		void shrinkHeaps();
 
 	public:
 		IdxVec3DPtr getConnections() const override;
@@ -71,15 +74,16 @@ namespace chm {
 	bool isWideEnough(const size_t max);
 
 	template<typename Coord, typename Idx, bool useEuclid>
-	inline void Hnsw<Coord, Idx, useEuclid>::fillHeap(
-		const ConstIter<Coord>& query, const ConstIter<Coord>& insertedQuery, FarHeap& eNewConn
-	) {
-		eNewConn.clear();
-		eNewConn.reserve(this->neighbors->len());
-		eNewConn.push(this->getDistance(insertedQuery, query), this->nodeCount);
+	inline void Hnsw<Coord, Idx, useEuclid>::fillHeap(const ConstIter<Coord>& query, const ConstIter<Coord>& insertedQuery) {
+		this->farHeap.clear();
+
+		if(!this->keepHeaps)
+			this->farHeap.reserve(this->neighbors->len() + 1);
+
+		this->farHeap.push(this->getDistance(insertedQuery, query), this->nodeCount);
 
 		for(const auto& idx : *this->neighbors)
-			eNewConn.push(this->getDistance(this->getCoords(idx), query), idx);
+			this->farHeap.push(this->getDistance(this->getCoords(idx), query), idx);
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
@@ -121,12 +125,28 @@ namespace chm {
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
-	inline void Hnsw<Coord, Idx, useEuclid>::searchLowerLayer(
-		const ConstIter<Coord>& query, Node& ep, const size_t ef, const size_t lc, FarHeap& W
-	) {
-		NearHeap C{ep};
-		this->visited->prepare(this->nodeCount, ep.idx);
-		W.push(ep);
+	inline void Hnsw<Coord, Idx, useEuclid>::reserveHeaps(const size_t ef) {
+		const auto maxLen = std::max(ef, this->Mmax0);
+		this->farHeap.reserve(maxLen);
+		this->nearHeap.reserve(maxLen);
+	}
+
+	template<typename Coord, typename Idx, bool useEuclid>
+	inline void Hnsw<Coord, Idx, useEuclid>::resetEp(const ConstIter<Coord>& query) {
+		this->ep.dist = this->getDistance(this->getCoords(this->entryIdx), query, true, this->entryIdx);
+		this->ep.idx = this->entryIdx;
+	}
+
+	template<typename Coord, typename Idx, bool useEuclid>
+	inline void Hnsw<Coord, Idx, useEuclid>::searchLowerLayer(const ConstIter<Coord>& query, const size_t ef, const size_t lc) {
+		auto& C = this->nearHeap;
+		auto& W = this->farHeap;
+
+		C.clear();
+		C.push(this->ep);
+		this->visited->prepare(this->nodeCount, this->ep.idx);
+		W.clear();
+		W.push(this->ep);
 
 		while(C.len()) {
 			Idx cIdx{};
@@ -169,34 +189,37 @@ namespace chm {
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
-	inline void Hnsw<Coord, Idx, useEuclid>::searchUpperLayer(const ConstIter<Coord>& query, Node& resEp, const size_t lc) {
+	inline void Hnsw<Coord, Idx, useEuclid>::searchUpperLayer(const ConstIter<Coord>& query, const size_t lc) {
 		size_t prevIdx{};
 
 		do {
-			this->neighbors->use(resEp.idx, lc);
-			prevIdx = resEp.idx;
+			this->neighbors->use(this->ep.idx, lc);
+			prevIdx = this->ep.idx;
 
 			for(const auto& cIdx : *this->neighbors) {
 				const auto cDist = this->getDistance(this->getCoords(cIdx), query, true, cIdx);
 
-				if(cDist < resEp.dist) {
-					resEp.dist = cDist;
-					resEp.idx = cIdx;
+				if(cDist < this->ep.dist) {
+					this->ep.dist = cDist;
+					this->ep.idx = cIdx;
 				}
 			}
 
-		} while(resEp.idx != prevIdx);
+		} while(this->ep.idx != prevIdx);
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
-	inline void Hnsw<Coord, Idx, useEuclid>::selectNeighborsHeuristic(FarHeap& outC, const size_t M) {
-		if(outC.len() < M)
+	inline void Hnsw<Coord, Idx, useEuclid>::selectNeighborsHeuristic(const size_t M) {
+		if(this->farHeap.len() < M)
 			return;
 
-		auto& R = outC;
-		NearHeap W(outC);
+		auto& R = this->farHeap;
+		auto& W = this->nearHeap;
 
-		R.reserve(std::min(W.len(), M));
+		W.loadFrom(R, !this->keepHeaps);
+
+		if(!this->keepHeaps)
+			R.reserve(std::min(W.len(), M));
 
 		while(W.len() && R.len() < M) {
 			{
@@ -218,6 +241,12 @@ namespace chm {
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
+	inline void Hnsw<Coord, Idx, useEuclid>::shrinkHeaps() {
+		this->farHeap.shrinkToFit();
+		this->nearHeap.shrinkToFit();
+	}
+
+	template<typename Coord, typename Idx, bool useEuclid>
 	inline IdxVec3DPtr Hnsw<Coord, Idx, useEuclid>::getConnections() const {
 		return this->neighbors->getConnections();
 	}
@@ -225,12 +254,15 @@ namespace chm {
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline Hnsw<Coord, Idx, useEuclid>::Hnsw(const HnswCfgPtr& cfg, const HnswSettingsPtr& settings)
 		: dim(cfg->dim), distanceCacheEnabled(settings->distanceCacheEnabled), efConstruction(cfg->efConstruction), entryIdx(0), entryLevel(0),
-		M(cfg->M), mL(1.0 / std::log(1.0 * this->M)), Mmax0(this->M * 2), nodeCount(0) {
+		keepHeaps(settings->keepHeaps), M(cfg->M), mL(1.0 / std::log(1.0 * this->M)), Mmax0(this->M * 2), nodeCount(0) {
 
 		this->coords.resize(this->dim * cfg->maxNodeCount);
 		this->gen.seed(cfg->seed);
 		this->neighbors = createNeighbors<Coord, Idx>(settings->usePreAllocNeighbors, cfg->maxNodeCount, this->M, this->Mmax0);
 		this->visited = createVisitedSet<Idx>(settings->useBitset);
+
+		if(this->keepHeaps)
+			this->reserveHeaps(this->efConstruction);
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
@@ -247,25 +279,28 @@ namespace chm {
 		if(this->distanceCacheEnabled)
 			this->distanceCache.clear();
 
-		Node ep(this->getDistance(this->getCoords(this->entryIdx), query, true, this->entryIdx), this->entryIdx);
+		this->resetEp(query);
 		const auto L = this->entryLevel;
 		const auto l = this->getNewLevel();
 
 		this->neighbors->init(this->nodeCount, l);
 
 		for(auto lc = L; lc > l; lc--)
-			this->searchUpperLayer(query, ep, lc);
+			this->searchUpperLayer(query, lc);
 
 		for(auto lc = std::min(L, l);; lc--) {
-			FarHeap candidates{};
-			this->searchLowerLayer(query, ep, this->efConstruction, lc, candidates);
-			this->selectNeighborsHeuristic(candidates, this->M);
+			this->searchLowerLayer(query, this->efConstruction, lc);
+			this->selectNeighborsHeuristic(this->M);
 
 			this->neighbors->use(this->nodeCount, lc);
-			this->neighbors->fillFrom(candidates);
+			this->neighbors->fillFrom(this->farHeap);
 
 			// ep = nearest from candidates
-			ep = Node(candidates.top());
+			{
+				const auto& n = this->farHeap.top();
+				this->ep.dist = n.dist;
+				this->ep.idx = n.idx;
+			}
 			const auto layerMmax = !lc ? this->Mmax0 : this->M;
 
 			for(const auto& eIdx : *this->neighbors) {
@@ -274,9 +309,9 @@ namespace chm {
 				if(this->neighbors->len() < layerMmax)
 					this->neighbors->push(this->nodeCount);
 				else {
-					this->fillHeap(this->getCoords(eIdx), query, candidates);
-					this->selectNeighborsHeuristic(candidates, layerMmax);
-					this->neighbors->fillFrom(candidates);
+					this->fillHeap(this->getCoords(eIdx), query);
+					this->selectNeighborsHeuristic(layerMmax);
+					this->neighbors->fillFrom(this->farHeap);
 				}
 			}
 
@@ -290,6 +325,9 @@ namespace chm {
 		}
 
 		this->nodeCount++;
+
+		if(!this->keepHeaps)
+			this->shrinkHeaps();
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
@@ -299,14 +337,17 @@ namespace chm {
 		if(this->distanceCacheEnabled)
 			this->distanceCache.clear();
 
-		Node ep(this->getDistance(this->getCoords(this->entryIdx), query, true, this->entryIdx), this->entryIdx);
+		if(this->keepHeaps)
+			this->reserveHeaps(ef);
+
+		this->resetEp(query);
 		const auto L = this->entryLevel;
 
 		for(size_t lc = L; lc > 0; lc--)
-			this->searchUpperLayer(query, ep, lc);
+			this->searchUpperLayer(query, lc);
 
-		FarHeap W{};
-		this->searchLowerLayer(query, ep, Idx(ef), 0, W);
+		auto& W = this->farHeap;
+		this->searchLowerLayer(query, Idx(ef), 0);
 
 		while(W.len() > K)
 			W.pop();
@@ -328,6 +369,9 @@ namespace chm {
 			if(!i)
 				break;
 		}
+
+		if(!this->keepHeaps)
+			this->shrinkHeaps();
 	}
 
 	template<typename Coord>

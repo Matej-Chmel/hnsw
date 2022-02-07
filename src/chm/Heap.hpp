@@ -21,12 +21,13 @@ namespace chm {
 		ConstIter<Node> end() const noexcept;
 		Heap() = default;
 		Heap(const Node& ep);
-		template<class C> Heap(Heap<Coord, Idx, C>& o);
 		size_t len() const;
+		template<class C> void loadFrom(Heap<Coord, Idx, C>& o, const bool shouldReserve);
 		void pop();
 		void push(const Node& n);
 		void push(const Coord dist, const Idx idx);
 		void reserve(size_t capacity);
+		void shrinkToFit();
 		const Node& top();
 	};
 
@@ -67,19 +68,22 @@ namespace chm {
 	}
 
 	template<typename Coord, typename Idx, class Comparator>
+	inline size_t Heap<Coord, Idx, Comparator>::len() const {
+		return this->nodes.size();
+	}
+
+	template<typename Coord, typename Idx, class Comparator>
 	template<class C>
-	inline Heap<Coord, Idx, Comparator>::Heap(Heap<Coord, Idx, C>& o) {
-		this->reserve(o.len());
+	inline void Heap<Coord, Idx, Comparator>::loadFrom(Heap<Coord, Idx, C>& o, const bool shouldReserve) {
+		this->clear();
+
+		if(shouldReserve)
+			this->reserve(o.len());
 
 		while(o.len()) {
 			this->push(o.top());
 			o.pop();
 		}
-	}
-
-	template<typename Coord, typename Idx, class Comparator>
-	inline size_t Heap<Coord, Idx, Comparator>::len() const {
-		return this->nodes.size();
 	}
 
 	template<typename Coord, typename Idx, class Comparator>
@@ -102,6 +106,12 @@ namespace chm {
 	template<typename Coord, typename Idx, class Comparator>
 	inline void Heap<Coord, Idx, Comparator>::reserve(size_t capacity) {
 		this->nodes.reserve(capacity);
+	}
+
+	template<typename Coord, typename Idx, class Comparator>
+	inline void Heap<Coord, Idx, Comparator>::shrinkToFit() {
+		this->clear();
+		this->nodes.shrink_to_fit();
 	}
 
 	template<typename Coord, typename Idx, class Comparator>

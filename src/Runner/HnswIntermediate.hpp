@@ -47,16 +47,13 @@ namespace chm {
 
 	template<typename Coord, typename Idx>
 	struct HnswLocals {
-		FarHeap<Coord, Idx> candidates;
 		size_t ef;
-		Node<Coord, Idx> ep;
 		size_t K;
 		size_t L;
 		size_t l;
 		size_t layerMmax;
 		bool isFirstNode;
 		ConstIter<Coord> query;
-		FarHeap<Coord, Idx> W;
 	};
 
 	template<typename Coord, typename Idx, bool useEuclid>
@@ -221,10 +218,7 @@ namespace chm {
 		if(this->hnsw->distanceCacheEnabled)
 			this->hnsw->distanceCache.clear();
 
-		this->local.ep = Node(
-			this->hnsw->getDistance(this->hnsw->getCoords(this->hnsw->entryIdx), query, true, this->hnsw->entryIdx),
-			this->hnsw->entryIdx
-		);
+		this->hnsw->resetEp(this->local.query);
 		this->local.L = this->hnsw->entryLevel;
 		this->local.l = this->hnsw->getNewLevel();
 
@@ -250,12 +244,12 @@ namespace chm {
 
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline void HnswInterImpl<Coord, Idx, useEuclid>::searchUpperLayer(const size_t lc) {
-		this->hnsw->searchUpperLayer(this->local.query, this->local.ep, lc);
+		this->hnsw->searchUpperLayer(this->local.query, lc);
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline BigNode<Coord> HnswInterImpl<Coord, Idx, useEuclid>::getNearestNode() const {
-		return BigNode<Coord>(this->local.ep.dist, size_t(this->local.ep.idx));
+		return BigNode<Coord>(this->hnsw->ep.dist, size_t(this->hnsw->ep.idx));
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
@@ -272,37 +266,40 @@ namespace chm {
 
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline size_t HnswInterImpl<Coord, Idx, useEuclid>::getLowerSearchEntry() const {
-		return size_t(this->local.ep.idx);
+		return size_t(this->hnsw->ep.idx);
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline void HnswInterImpl<Coord, Idx, useEuclid>::searchLowerLayer(const size_t lc) {
-		this->local.candidates.clear();
-		this->hnsw->searchLowerLayer(this->local.query, this->local.ep, this->hnsw->efConstruction, lc, this->local.candidates);
+		this->hnsw->searchLowerLayer(this->local.query, this->hnsw->efConstruction, lc);
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline BigNodeVecPtr<Coord> HnswInterImpl<Coord, Idx, useEuclid>::getLowerLayerResults() const {
-		return copyToVec(this->local.candidates);
+		return copyToVec(this->hnsw->farHeap);
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline void HnswInterImpl<Coord, Idx, useEuclid>::selectOriginalNeighbors(const size_t lc) {
-		this->hnsw->selectNeighborsHeuristic(this->local.candidates, this->hnsw->M);
+		this->hnsw->selectNeighborsHeuristic(this->hnsw->M);
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline BigNodeVecPtr<Coord> HnswInterImpl<Coord, Idx, useEuclid>::getOriginalNeighbors() const {
-		return copyToVec(this->local.candidates);
+		return this->getLowerLayerResults();
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline void HnswInterImpl<Coord, Idx, useEuclid>::connect(const size_t lc) {
 		this->hnsw->neighbors->use(this->hnsw->nodeCount, lc);
-		this->hnsw->neighbors->fillFrom(this->local.candidates);
+		this->hnsw->neighbors->fillFrom(this->hnsw->farHeap);
 
 		// ep = nearest from candidates
-		this->local.ep = Node(this->local.candidates.top());
+		{
+			const auto& n = this->hnsw->farHeap.top();
+			this->hnsw->ep.dist = n.dist;
+			this->hnsw->ep.idx = n.idx;
+		}
 		const auto layerMmax = !lc ? this->hnsw->Mmax0 : this->hnsw->M;
 
 		for(const auto& eIdx : *this->hnsw->neighbors) {
@@ -311,9 +308,9 @@ namespace chm {
 			if(this->hnsw->neighbors->len() < layerMmax)
 				this->hnsw->neighbors->push(this->hnsw->nodeCount);
 			else {
-				this->hnsw->fillHeap(this->hnsw->getCoords(eIdx), this->local.query, this->local.candidates);
-				this->hnsw->selectNeighborsHeuristic(this->local.candidates, layerMmax);
-				this->hnsw->neighbors->fillFrom(this->local.candidates);
+				this->hnsw->fillHeap(this->hnsw->getCoords(eIdx), this->local.query);
+				this->hnsw->selectNeighborsHeuristic(layerMmax);
+				this->hnsw->neighbors->fillFrom(this->hnsw->farHeap);
 			}
 		}
 	}
@@ -343,6 +340,9 @@ namespace chm {
 		}
 
 		this->hnsw->nodeCount++;
+
+		if(!this->hnsw->keepHeaps)
+			this->hnsw->shrinkHeaps();
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
@@ -359,10 +359,10 @@ namespace chm {
 		if(this->hnsw->distanceCacheEnabled)
 			this->hnsw->distanceCache.clear();
 
-		this->local.ep = Node(
-			this->hnsw->getDistance(this->hnsw->getCoords(this->hnsw->entryIdx), this->local.query, true, this->hnsw->entryIdx),
-			this->hnsw->entryIdx
-		);
+		if(this->hnsw->keepHeaps)
+			this->hnsw->reserveHeaps(std::max(this->local.ef, this->hnsw->Mmax0));
+
+		this->hnsw->resetEp(this->local.query);
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
@@ -372,26 +372,27 @@ namespace chm {
 
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline void HnswInterImpl<Coord, Idx, useEuclid>::searchUpperLayerANN(const size_t lc) {
-		this->hnsw->searchUpperLayer(this->local.query, this->local.ep, lc);
+		this->hnsw->searchUpperLayer(this->local.query, lc);
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline void HnswInterImpl<Coord, Idx, useEuclid>::searchLastLayerANN() {
-		this->local.W.clear();
-		this->hnsw->searchLowerLayer(this->local.query, this->local.ep, Idx(this->local.ef), 0, this->local.W);
+		this->hnsw->searchLowerLayer(this->local.query, Idx(this->local.ef), 0);
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline BigNodeVecPtr<Coord> HnswInterImpl<Coord, Idx, useEuclid>::getLastLayerResultsANN() const {
-		return copyToVec(this->local.W);
+		return this->getLowerLayerResults();
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline void HnswInterImpl<Coord, Idx, useEuclid>::fillResultsANN(std::vector<size_t>& resIndices, std::vector<Coord>& resDistances) {
-		while(this->local.W.len() > this->local.K)
-			this->local.W.pop();
+		auto& W = this->hnsw->farHeap;
 
-		const auto len = this->local.W.len();
+		while(W.len() > this->local.K)
+			W.pop();
+
+		const auto len = W.len();
 		resDistances.clear();
 		resDistances.resize(len);
 		resIndices.clear();
@@ -399,15 +400,18 @@ namespace chm {
 
 		for(auto i = len - 1;; i--) {
 			{
-				const auto& n = this->local.W.top();
+				const auto& n = W.top();
 				resDistances[i] = n.dist;
 				resIndices[i] = size_t(n.idx);
 			}
-			this->local.W.pop();
+			W.pop();
 
 			if(!i)
 				break;
 		}
+
+		if(!this->hnsw->keepHeaps)
+			this->hnsw->shrinkHeaps();
 	}
 
 	template<typename Coord>
