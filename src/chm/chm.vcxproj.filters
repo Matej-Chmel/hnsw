@@ -36,7 +36,7 @@
     <ClInclude Include="IVisitedSet.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="IConnections.hpp">
+    <ClInclude Include="INeighbors.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

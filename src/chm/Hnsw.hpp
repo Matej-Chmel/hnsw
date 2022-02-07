@@ -30,7 +30,6 @@ namespace chm {
 		using Node = Node<Coord, Idx>;
 
 		std::vector<Coord> coords;
-		IConnPtr<Coord, Idx> connections;
 		const size_t dim;
 		std::unordered_map<Idx, Coord> distanceCache;
 		const bool distanceCacheEnabled;
@@ -41,6 +40,7 @@ namespace chm {
 		const size_t M;
 		const double mL;
 		const size_t Mmax0;
+		INeighborsPtr<Coord, Idx> neighbors;
 		Idx nodeCount;
 		IVisitedSetPtr<Idx> visited;
 
@@ -75,10 +75,10 @@ namespace chm {
 		const ConstIter<Coord>& query, const ConstIter<Coord>& insertedQuery, FarHeap& eNewConn
 	) {
 		eNewConn.clear();
-		eNewConn.reserve(this->connections->len());
+		eNewConn.reserve(this->neighbors->len());
 		eNewConn.push(this->getDistance(insertedQuery, query), this->nodeCount);
 
-		for(const auto& idx : *this->connections)
+		for(const auto& idx : *this->neighbors)
 			eNewConn.push(this->getDistance(this->getCoords(idx), query), idx);
 	}
 
@@ -141,12 +141,12 @@ namespace chm {
 				cIdx = c.idx;
 			}
 
-			this->connections->useNeighbors(cIdx, lc);
+			this->neighbors->use(cIdx, lc);
 
 			// Extract nearest from C.
 			C.pop();
 
-			for(const auto& eIdx : *this->connections) {
+			for(const auto& eIdx : *this->neighbors) {
 				if(this->visited->insert(eIdx)) {
 					const auto eDist = this->getDistance(this->getCoords(eIdx), query, true, eIdx);
 					bool shouldAdd{};
@@ -173,10 +173,10 @@ namespace chm {
 		size_t prevIdx{};
 
 		do {
-			this->connections->useNeighbors(resEp.idx, lc);
+			this->neighbors->use(resEp.idx, lc);
 			prevIdx = resEp.idx;
 
-			for(const auto& cIdx : *this->connections) {
+			for(const auto& cIdx : *this->neighbors) {
 				const auto cDist = this->getDistance(this->getCoords(cIdx), query, true, cIdx);
 
 				if(cDist < resEp.dist) {
@@ -219,7 +219,7 @@ namespace chm {
 
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline IdxVec3DPtr Hnsw<Coord, Idx, useEuclid>::getConnections() const {
-		return this->connections->getConnections();
+		return this->neighbors->getConnections();
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
@@ -227,9 +227,9 @@ namespace chm {
 		: dim(cfg->dim), distanceCacheEnabled(settings->distanceCacheEnabled), efConstruction(cfg->efConstruction), entryIdx(0), entryLevel(0),
 		M(cfg->M), mL(1.0 / std::log(1.0 * this->M)), Mmax0(this->M * 2), nodeCount(0) {
 
-		this->connections = createConn<Coord, Idx>(settings->useConnLayer0, cfg->maxNodeCount, this->M, this->Mmax0);
 		this->coords.resize(this->dim * cfg->maxNodeCount);
 		this->gen.seed(cfg->seed);
+		this->neighbors = createNeighbors<Coord, Idx>(settings->usePreAllocNeighbors, cfg->maxNodeCount, this->M, this->Mmax0);
 		this->visited = createVisitedSet<Idx>(settings->useBitset);
 	}
 
@@ -240,7 +240,7 @@ namespace chm {
 		if(!this->nodeCount) {
 			this->entryLevel = this->getNewLevel();
 			this->nodeCount = 1;
-			this->connections->init(this->entryIdx, this->entryLevel);
+			this->neighbors->init(this->entryIdx, this->entryLevel);
 			return;
 		}
 
@@ -251,7 +251,7 @@ namespace chm {
 		const auto L = this->entryLevel;
 		const auto l = this->getNewLevel();
 
-		this->connections->init(this->nodeCount, l);
+		this->neighbors->init(this->nodeCount, l);
 
 		for(auto lc = L; lc > l; lc--)
 			this->searchUpperLayer(query, ep, lc);
@@ -261,22 +261,22 @@ namespace chm {
 			this->searchLowerLayer(query, ep, this->efConstruction, lc, candidates);
 			this->selectNeighborsHeuristic(candidates, this->M);
 
-			this->connections->useNeighbors(this->nodeCount, lc);
-			this->connections->fillFrom(candidates);
+			this->neighbors->use(this->nodeCount, lc);
+			this->neighbors->fillFrom(candidates);
 
 			// ep = nearest from candidates
 			ep = Node(candidates.top());
 			const auto layerMmax = !lc ? this->Mmax0 : this->M;
 
-			for(const auto& eIdx : *this->connections) {
-				this->connections->useNeighbors(eIdx, lc);
+			for(const auto& eIdx : *this->neighbors) {
+				this->neighbors->use(eIdx, lc);
 
-				if(this->connections->len() < layerMmax)
-					this->connections->push(this->nodeCount);
+				if(this->neighbors->len() < layerMmax)
+					this->neighbors->push(this->nodeCount);
 				else {
 					this->fillHeap(this->getCoords(eIdx), query, candidates);
 					this->selectNeighborsHeuristic(candidates, layerMmax);
-					this->connections->fillFrom(candidates);
+					this->neighbors->fillFrom(candidates);
 				}
 			}
 

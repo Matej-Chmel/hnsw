@@ -214,7 +214,7 @@ namespace chm {
 		if(this->local.isFirstNode) {
 			this->hnsw->entryLevel = this->hnsw->getNewLevel();
 			this->hnsw->nodeCount = 1;
-			this->hnsw->connections->init(this->hnsw->entryIdx, this->hnsw->entryLevel);
+			this->hnsw->neighbors->init(this->hnsw->entryIdx, this->hnsw->entryLevel);
 			return;
 		}
 
@@ -228,7 +228,7 @@ namespace chm {
 		this->local.L = this->hnsw->entryLevel;
 		this->local.l = this->hnsw->getNewLevel();
 
-		this->hnsw->connections->init(this->hnsw->nodeCount, this->local.l);
+		this->hnsw->neighbors->init(this->hnsw->nodeCount, this->local.l);
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
@@ -298,35 +298,35 @@ namespace chm {
 
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline void HnswInterImpl<Coord, Idx, useEuclid>::connect(const size_t lc) {
-		this->hnsw->connections->useNeighbors(this->hnsw->nodeCount, lc);
-		this->hnsw->connections->fillFrom(this->local.candidates);
+		this->hnsw->neighbors->use(this->hnsw->nodeCount, lc);
+		this->hnsw->neighbors->fillFrom(this->local.candidates);
 
 		// ep = nearest from candidates
 		this->local.ep = Node(this->local.candidates.top());
 		const auto layerMmax = !lc ? this->hnsw->Mmax0 : this->hnsw->M;
 
-		for(const auto& eIdx : *this->hnsw->connections) {
-			this->hnsw->connections->useNeighbors(eIdx, lc);
+		for(const auto& eIdx : *this->hnsw->neighbors) {
+			this->hnsw->neighbors->use(eIdx, lc);
 
-			if(this->hnsw->connections->len() < layerMmax)
-				this->hnsw->connections->push(this->hnsw->nodeCount);
+			if(this->hnsw->neighbors->len() < layerMmax)
+				this->hnsw->neighbors->push(this->hnsw->nodeCount);
 			else {
 				this->hnsw->fillHeap(this->hnsw->getCoords(eIdx), this->local.query, this->local.candidates);
 				this->hnsw->selectNeighborsHeuristic(this->local.candidates, layerMmax);
-				this->hnsw->connections->fillFrom(this->local.candidates);
+				this->hnsw->neighbors->fillFrom(this->local.candidates);
 			}
 		}
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline VecPtr<size_t> HnswInterImpl<Coord, Idx, useEuclid>::getNeighborsForNode(const size_t nodeIdx, const size_t lc) const {
-		this->hnsw->connections->useNeighbors(Idx(nodeIdx), Idx(lc));
+		this->hnsw->neighbors->use(Idx(nodeIdx), Idx(lc));
 		auto res = std::make_shared<std::vector<size_t>>();
 		auto& r = *res;
 
-		r.reserve(this->hnsw->connections->len());
+		r.reserve(this->hnsw->neighbors->len());
 
-		for(const auto& neighborIdx : *this->hnsw->connections)
+		for(const auto& neighborIdx : *this->hnsw->neighbors)
 			r.push_back(size_t(neighborIdx));
 
 		return res;
