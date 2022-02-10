@@ -59,7 +59,7 @@ namespace chm {
 
 		if(drawCount > 0)
 			for(size_t i = 0; i < drawCount; i++)
-				this->bar[this->drawPos++] = char(219);
+				this->bar[this->drawPos++] = 'O';
 
 		this->writeNums();
 		std::cout << this->bar;

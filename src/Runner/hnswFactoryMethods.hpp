@@ -17,6 +17,7 @@ namespace chm {
 		const HnswSettingsPtr settings;
 
 		HnswType(const HnswCfgPtr& cfg, const bool isIntermediate, const HnswKind kind, const HnswSettingsPtr& settings = nullptr);
+		HnswType(const HnswCfgPtr& cfg, const HnswKind kind, const HnswSettingsPtr& settings = nullptr);
 	};
 
 	using HnswTypePtr = std::shared_ptr<HnswType>;
