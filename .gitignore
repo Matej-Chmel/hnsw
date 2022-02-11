@@ -4,5 +4,6 @@
 datasets/
 Debug/
 logs/
+out/
 Release/
 x64/
