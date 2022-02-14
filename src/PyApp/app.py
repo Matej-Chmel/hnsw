@@ -3,8 +3,9 @@ import numpy as np
 
 def run(data: list[float]):
 	try:
-		with m.cppStdout(stderr=True, stdout=True):
-			m.print(np.array(data))
+		arr = np.array(data, dtype=np.float32)
+		m.multiply(arr, 2.0)
+		print(arr)
 	except RuntimeError as e:
 		print(e)
 
