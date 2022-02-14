@@ -2,7 +2,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>ef2a7f43-baf9-444a-a734-3456986058ac</ProjectGuid>
+    <ProjectGuid>0db52cec-527d-485c-b72a-61ffde23bf54</ProjectGuid>
     <ProjectHome>.</ProjectHome>
     <StartupFile>app.py</StartupFile>
     <SearchPath>
@@ -11,8 +11,6 @@
     <OutputPath>.</OutputPath>
     <Name>PyApp</Name>
     <RootNamespace>PyApp</RootNamespace>
-    <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -24,16 +22,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="app.py" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\CppModule\CppModule.vcxproj">
-      <Name>CppModule</Name>
-      <Project>{b7f5016f-f5cc-489c-9137-554364941e5f}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="cpp_module.pyi" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
