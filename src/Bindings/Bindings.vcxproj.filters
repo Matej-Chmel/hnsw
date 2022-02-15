@@ -18,24 +18,24 @@
     <ClCompile Include="bindings.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="pybind.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="SpaceEnum.cpp">
+    <ClCompile Include="KnnResults.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="pybind.hpp">
+    <ClInclude Include="KnnResults.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="HnswlibIndex.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SpaceEnum.hpp">
+    <ClInclude Include="ChmOrigIndex.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ChmOrigIndex.hpp">
+    <ClInclude Include="ChmOptimIndex.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="common.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

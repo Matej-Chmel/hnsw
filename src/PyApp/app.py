@@ -3,11 +3,13 @@ import hnsw
 from IHnsw import IHnsw, KnnResults
 import numpy as np
 
+N = "\n"
+
 @dataclass
 class Setup:
 	dim: int = 16
 	efConstruction: int = 200
-	elementCount: int  = 10000
+	elementCount: int  = 20000
 	k: int  = 10
 	M: int  = 16
 	seed: int  = 100
@@ -29,17 +31,20 @@ def run(cls, setup: Setup):
 
 	print("Index built.\nSearching.")
 	res = index.knn_query(setup.queries, setup.k)
-	print("Search completed.")
+	print("Search completed.\n")
 	return res
 
 def areEqual(refRes: KnnResults, subRes: KnnResults):
 	return np.array_equal(refRes[0], subRes[0]) and np.array_equal(refRes[1], subRes[1])
 
+def checkAreEqual(refRes: KnnResults, subRes: KnnResults):
+	print(f"Results equal: {areEqual(refRes, subRes)}.{N}")
+
 def main():
 	setup = Setup()
 	refRes = run(hnsw.HnswlibIndexFloat32, setup)
-	subRes = run(hnsw.ChmOrigIndexFloat32, setup)
-	print(f"Results equal: {areEqual(refRes, subRes)}.")
+	checkAreEqual(refRes, run(hnsw.ChmOrigIndexFloat32, setup))
+	checkAreEqual(refRes, run(hnsw.ChmOptimIndexFloat32, setup))
 
 if __name__ == "__main__":
 	main()
