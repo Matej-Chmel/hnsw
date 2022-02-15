@@ -26,21 +26,23 @@ namespace chm {
 	template<typename Dist>
 	using NumpyArray = py::array_t<Dist, py::array::c_style | py::array::forcecast>;
 
+	enum class SpaceEnum {
+		EUCLIDEAN,
+		INNER_PRODUCT
+	};
+
 	constexpr auto CONTINUOUS_ERR = "Cannot return the results in a contigious 2D array, ef or M is probably too small.";
 	constexpr size_t DEFAULT_EF = 10;
 	constexpr auto UNKNOWN_SPACE = "Unknown space";
 	constexpr auto WRONG_DIM = "Data must be 1D or 2D array.";
 	constexpr auto WRONG_FEATURES = "Number of features doesn't equal to number of dimensions.";
 
+	void bindSpaceEnum(py::module_& m);
 	void checkBufInfo(const py::buffer_info& buf, const size_t dim);
 	void freeWhenDone(void* d);
 
 	template<typename Dist>
-	DataInfo<Dist> getDataInfo(const NumpyArray<Dist>& data, const size_t dim) {
-		const auto buf = data.request();
-		checkBufInfo(buf, dim);
-		return {size_t(buf.shape[0]), (const Dist* const)buf.ptr};
-	}
+	DataInfo<Dist> getDataInfo(const NumpyArray<Dist>& data, const size_t dim);
 
 	template<typename Dist>
 	inline KnnResults<Dist>::KnnResults(const size_t count, const size_t K) : count(count), K(K) {
@@ -71,5 +73,12 @@ namespace chm {
 	inline void KnnResults<Dist>::setData(const size_t queryIdx, const size_t neighborIdx, const Dist distance, const size_t label) {
 		this->dist[queryIdx * this->K + neighborIdx] = distance;
 		this->labels[queryIdx * this->K + neighborIdx] = label;
+	}
+
+	template<typename Dist>
+	DataInfo<Dist> getDataInfo(const NumpyArray<Dist>& data, const size_t dim) {
+		const auto buf = data.request();
+		checkBufInfo(buf, dim);
+		return {size_t(buf.shape[0]), (const Dist* const)buf.ptr};
 	}
 }

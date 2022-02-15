@@ -1,10 +1,7 @@
 #pragma once
 #include <hnswlib/hnswlib.h>
 #include <hnswlib/templateSpaces.hpp>
-#include <memory>
-#include <string>
-#include "pybind.hpp"
-#include "SpaceEnum.hpp"
+#include "common.hpp"
 
 namespace chm {
 	template<typename Dist>
@@ -80,11 +77,6 @@ namespace chm {
 
 	template<typename Dist>
 	void bindHnswlibIndex(py::module_& m, const std::string& name) {
-		py::class_<HnswlibIndex<Dist>>(m, name.c_str())
-			.def(py::init<const SpaceEnum, const size_t>())
-			.def("add_items", &HnswlibIndex<Dist>::addItems)
-			.def("init_index", &HnswlibIndex<Dist>::init)
-			.def("knn_query", &HnswlibIndex<Dist>::knnQuery)
-			.def("set_ef", &HnswlibIndex<Dist>::setEf);
+		bindIndexImpl<HnswlibIndex<Dist>>(m, name);
 	}
 }
