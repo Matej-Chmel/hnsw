@@ -91,14 +91,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="bindings.cpp" />
-    <ClCompile Include="pybind.cpp" />
-    <ClCompile Include="SpaceEnum.cpp" />
+    <ClCompile Include="KnnResults.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="common.hpp" />
+    <ClInclude Include="ChmOptimIndex.hpp" />
     <ClInclude Include="ChmOrigIndex.hpp" />
     <ClInclude Include="HnswlibIndex.hpp" />
-    <ClInclude Include="pybind.hpp" />
-    <ClInclude Include="SpaceEnum.hpp" />
+    <ClInclude Include="KnnResults.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
