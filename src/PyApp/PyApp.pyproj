@@ -11,6 +11,8 @@
     <OutputPath>.</OutputPath>
     <Name>PyApp</Name>
     <RootNamespace>PyApp</RootNamespace>
+    <LaunchProvider>Standard Python launcher</LaunchProvider>
+    <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -22,6 +24,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="app.py" />
+    <Compile Include="IHnsw.py" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="hnsw.pyi" />

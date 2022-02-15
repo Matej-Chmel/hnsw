@@ -35,5 +35,8 @@
     <ClInclude Include="SpaceEnum.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ChmOrigIndex.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
