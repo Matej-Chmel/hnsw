@@ -23,6 +23,16 @@
   <ItemGroup>
     <Compile Include="app.py" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="hnsw.pyi" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Bindings\Bindings.vcxproj">
+      <Name>Bindings</Name>
+      <Project>{3c06ebf8-fae2-488f-8dc4-79c523861499}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
        Visual Studio and specify your pre- and post-build commands in
