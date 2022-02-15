@@ -43,7 +43,7 @@ namespace chm {
 	using Iter = typename std::vector<T>::iterator;
 
 	template<typename Dist, class Cmp>
-	class Heap : public Unique {
+	class Heap {
 		std::vector<Node<Dist>> nodes;
 
 		Iter<Node<Dist>> begin();

@@ -18,7 +18,7 @@ namespace chm {
 		void addItems(const NumpyArray<Dist> data);
 		HnswlibIndex(const SpaceEnum spaceEnum, const size_t dim);
 		void init(const size_t maxElements, const size_t M, const size_t efConstruction, const unsigned int seed);
-		py::tuple knnQuery(const NumpyArray<Dist> data, const size_t k);
+		py::tuple knnQuery(const NumpyArray<Dist> data, const size_t K);
 		void setEf(const size_t ef);
 	};
 
@@ -27,17 +27,14 @@ namespace chm {
 
 	template<typename Dist>
 	inline void HnswlibIndex<Dist>::addItems(const NumpyArray<Dist> data) {
-		const auto buf = data.request();
-		checkBufInfo(buf, this->dim);
-		const auto count = size_t(buf.shape[0]);
-		const Dist* const ptr = (const Dist* const)buf.ptr;
+		const auto info = getDataInfo(data, this->dim);
 
-		for(size_t i = 0; i < count; i++)
-			this->algo->addPoint(ptr + i * this->dim, i);
+		for(size_t i = 0; i < info.count; i++)
+			this->algo->addPoint(info.ptr + i * this->dim, i);
 	}
 
 	template<typename Dist>
-	inline HnswlibIndex<Dist>::HnswlibIndex(const SpaceEnum spaceEnum, const size_t dim) : dim(dim), ef(ef) {
+	inline HnswlibIndex<Dist>::HnswlibIndex(const SpaceEnum spaceEnum, const size_t dim) : algo(nullptr), dim(dim), ef(DEFAULT_EF) {
 		switch(spaceEnum) {
 			case SpaceEnum::INNER_PRODUCT:
 				this->space = std::make_unique<templatedHnswlib::IPSpace<Dist>>(dim);
@@ -56,44 +53,24 @@ namespace chm {
 	}
 
 	template<typename Dist>
-	inline py::tuple HnswlibIndex<Dist>::knnQuery(const NumpyArray<Dist> data, const size_t k) {
-		const auto buf = data.request();
-		checkBufInfo(buf, this->dim);
-		const auto count = size_t(buf.shape[0]);
-		const auto resLen = count * k;
-		const Dist* const ptr = (const Dist* const)buf.ptr;
+	inline py::tuple HnswlibIndex<Dist>::knnQuery(const NumpyArray<Dist> data, const size_t K) {
+		const auto info = getDataInfo(data, this->dim);
+		KnnResults<Dist> res(info.count, K);
 
-		auto resDist = new Dist[resLen];
-		auto resLabels = new hnswlib::labeltype[resLen];
+		for(size_t queryIdx = 0; queryIdx < info.count; queryIdx++) {
+			auto queue = this->algo->searchKnn(info.ptr + queryIdx * this->dim, K);
 
-		for(size_t i = 0; i < count; i++) {
-			auto queue = this->algo->searchKnn(ptr + i * this->dim, k);
-
-			for(int resIdx = k - 1; resIdx >= 0; resIdx--) {
-				auto& p = queue.top();
-				resDist[i * k + resIdx] = p.first;
-				resLabels[i * k + resIdx] = p.second;
+			for(auto neighborIdx = K - 1;; neighborIdx--) {
+				const auto& p = queue.top();
+				res.setData(queryIdx, neighborIdx, p.first, p.second);
 				queue.pop();
+
+				if(!neighborIdx)
+					break;
 			}
 		}
 
-		py::capsule freeDistWhenDone(resDist, freeWhenDone);
-		py::capsule freeLabelsWhenDone(resLabels, freeWhenDone);
-
-		return py::make_tuple(
-			py::array_t<hnswlib::labeltype>(
-				{count, k},
-				{k * sizeof(hnswlib::labeltype), sizeof(hnswlib::labeltype)},
-				resLabels,
-				freeLabelsWhenDone
-			),
-			py::array_t<Dist>(
-				{count, k},
-				{k * sizeof(Dist), sizeof(Dist)},
-				resDist,
-				freeDistWhenDone
-			)
-		);
+		return res.makeTuple();
 	}
 
 	template<typename Dist>

@@ -95,6 +95,7 @@
     <ClCompile Include="SpaceEnum.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ChmOrigIndex.hpp" />
     <ClInclude Include="HnswlibIndex.hpp" />
     <ClInclude Include="pybind.hpp" />
     <ClInclude Include="SpaceEnum.hpp" />
