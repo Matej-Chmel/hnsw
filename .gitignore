@@ -1,10 +1,7 @@
-*.log
-*.pdf
 __pycache__
 .vs/
 datasets/
 Debug/
-logs/
 out/
 Release/
 x64/
