@@ -7,7 +7,6 @@ namespace chm {
 	class HnswlibIndex {
 		std::unique_ptr<Algo> algo;
 		const size_t dim;
-		size_t ef;
 		std::unique_ptr<hnswlib::SpaceInterface<Dist>> space;
 
 	public:
@@ -30,7 +29,7 @@ namespace chm {
 	}
 
 	template<typename Algo, typename Dist>
-	inline HnswlibIndex<Algo, Dist>::HnswlibIndex(const SpaceEnum spaceEnum, const size_t dim) : algo(nullptr), dim(dim), ef(DEFAULT_EF) {
+	inline HnswlibIndex<Algo, Dist>::HnswlibIndex(const SpaceEnum spaceEnum, const size_t dim) : algo(nullptr), dim(dim) {
 		switch(spaceEnum) {
 			case SpaceEnum::INNER_PRODUCT:
 				this->space = std::make_unique<templatedHnswlib::IPSpace<Dist>>(dim);
@@ -74,7 +73,8 @@ namespace chm {
 
 	template<typename Algo, typename Dist>
 	inline void HnswlibIndex<Algo, Dist>::setEf(const size_t ef) {
-		this->ef = ef;
+		if constexpr(std::is_same<Algo, hnswlib::HierarchicalNSW<Dist>>::value)
+			this->algo->setEf(ef);
 	}
 
 	template<typename Algo, typename Dist>
