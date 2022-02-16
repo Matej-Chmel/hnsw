@@ -6,6 +6,9 @@ class Space(Enum):
 	EUCLIDEAN = auto()
 	INNER_PRODUCT = auto()
 
+class BruteforceIndexFloat32(IHnsw):
+	...
+
 class ChmOptimIndexFloat32(IHnsw):
 	...
 
