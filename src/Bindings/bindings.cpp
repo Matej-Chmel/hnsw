@@ -9,6 +9,7 @@ namespace chm {
 		bindSpaceEnum(m);
 		bindChmIndex<HnswOptim<float>, float>(m, "ChmOptimIndexFloat32");
 		bindChmIndex<HnswOrig<float>, float>(m, "ChmOrigIndexFloat32");
-		bindHnswlibIndex<float>(m, "HnswlibIndexFloat32");
+		bindHnswlibIndex<hnswlib::BruteforceSearch<float>, float>(m, "BruteforceIndexFloat32");
+		bindHnswlibIndex<hnswlib::HierarchicalNSW<float>, float>(m, "HnswlibIndexFloat32");
 	}
 }

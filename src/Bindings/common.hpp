@@ -19,7 +19,7 @@ namespace chm {
 		py::class_<Index>(m, name.c_str())
 			.def(py::init<const SpaceEnum, const size_t>())
 			.def("add_items", &Index::addItems)
-			.def("init_index", &Index::init)
+			.def("init_index", &Index::init, py::arg("max_elements"), py::arg("M") = 16, py::arg("ef_construction") = 200, py::arg("seed") = 100)
 			.def("knn_query", &Index::knnQuery)
 			.def("set_ef", &Index::setEf);
 	}
