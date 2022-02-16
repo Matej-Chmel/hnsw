@@ -29,13 +29,10 @@
     <ClInclude Include="HnswlibIndex.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ChmOrigIndex.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ChmOptimIndex.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="common.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ChmIndex.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
