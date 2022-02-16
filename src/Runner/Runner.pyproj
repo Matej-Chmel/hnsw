@@ -2,17 +2,15 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>0db52cec-527d-485c-b72a-61ffde23bf54</ProjectGuid>
+    <ProjectGuid>81e08ca2-ceee-4921-9415-ec29455cc804</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>app.py</StartupFile>
+    <StartupFile>runner.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
-    <Name>PyApp</Name>
-    <RootNamespace>PyApp</RootNamespace>
-    <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
+    <Name>Runner</Name>
+    <RootNamespace>Runner</RootNamespace>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -23,11 +21,8 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="app.py" />
     <Compile Include="IHnsw.py" />
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="hnsw.pyi" />
+    <Compile Include="runner.py" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Bindings\Bindings.vcxproj">
@@ -35,6 +30,9 @@
       <Project>{3c06ebf8-fae2-488f-8dc4-79c523861499}</Project>
       <Private>True</Private>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="hnsw.pyi" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
