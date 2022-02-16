@@ -1,12 +1,11 @@
 #pragma once
-#include <hnswlib/hnswlib.h>
 #include <hnswlib/templateSpaces.hpp>
 #include "common.hpp"
 
 namespace chm {
-	template<typename Dist>
+	template<typename Algo, typename Dist>
 	class HnswlibIndex {
-		std::unique_ptr<hnswlib::HierarchicalNSW<Dist>> algo;
+		std::unique_ptr<Algo> algo;
 		const size_t dim;
 		size_t ef;
 		std::unique_ptr<hnswlib::SpaceInterface<Dist>> space;
@@ -19,19 +18,19 @@ namespace chm {
 		void setEf(const size_t ef);
 	};
 
-	template<typename Dist>
+	template<typename Algo, typename Dist>
 	void bindHnswlibIndex(py::module_& m, const std::string& name);
 
-	template<typename Dist>
-	inline void HnswlibIndex<Dist>::addItems(const NumpyArray<Dist> data) {
+	template<typename Algo, typename Dist>
+	inline void HnswlibIndex<Algo, Dist>::addItems(const NumpyArray<Dist> data) {
 		const auto info = getDataInfo(data, this->dim);
 
 		for(size_t i = 0; i < info.count; i++)
 			this->algo->addPoint(info.ptr + i * this->dim, i);
 	}
 
-	template<typename Dist>
-	inline HnswlibIndex<Dist>::HnswlibIndex(const SpaceEnum spaceEnum, const size_t dim) : algo(nullptr), dim(dim), ef(DEFAULT_EF) {
+	template<typename Algo, typename Dist>
+	inline HnswlibIndex<Algo, Dist>::HnswlibIndex(const SpaceEnum spaceEnum, const size_t dim) : algo(nullptr), dim(dim), ef(DEFAULT_EF) {
 		switch(spaceEnum) {
 			case SpaceEnum::INNER_PRODUCT:
 				this->space = std::make_unique<templatedHnswlib::IPSpace<Dist>>(dim);
@@ -44,13 +43,16 @@ namespace chm {
 		}
 	}
 
-	template<typename Dist>
-	inline void HnswlibIndex<Dist>::init(const size_t maxElements, const size_t M, const size_t efConstruction, const unsigned int seed) {
-		this->algo = std::make_unique<hnswlib::HierarchicalNSW<Dist>>(this->space.get(), maxElements, M, efConstruction, seed);
+	template<typename Algo, typename Dist>
+	inline void HnswlibIndex<Algo, Dist>::init(const size_t maxElements, const size_t M, const size_t efConstruction, const unsigned int seed) {
+		if constexpr(std::is_same<Algo, hnswlib::BruteforceSearch<Dist>>::value)
+			this->algo = std::make_unique<Algo>(this->space.get(), maxElements);
+		else
+			this->algo = std::make_unique<Algo>(this->space.get(), maxElements, M, efConstruction, seed);
 	}
 
-	template<typename Dist>
-	inline py::tuple HnswlibIndex<Dist>::knnQuery(const NumpyArray<Dist> data, const size_t K) {
+	template<typename Algo, typename Dist>
+	inline py::tuple HnswlibIndex<Algo, Dist>::knnQuery(const NumpyArray<Dist> data, const size_t K) {
 		const auto info = getDataInfo(data, this->dim);
 		KnnResults<Dist> res(info.count, K);
 
@@ -70,13 +72,13 @@ namespace chm {
 		return res.makeTuple();
 	}
 
-	template<typename Dist>
-	inline void HnswlibIndex<Dist>::setEf(const size_t ef) {
+	template<typename Algo, typename Dist>
+	inline void HnswlibIndex<Algo, Dist>::setEf(const size_t ef) {
 		this->ef = ef;
 	}
 
-	template<typename Dist>
+	template<typename Algo, typename Dist>
 	void bindHnswlibIndex(py::module_& m, const std::string& name) {
-		bindIndexImpl<HnswlibIndex<Dist>>(m, name);
+		bindIndexImpl<HnswlibIndex<Algo, Dist>>(m, name);
 	}
 }
