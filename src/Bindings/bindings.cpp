@@ -1,3 +1,4 @@
+#define DECIDE_BY_IDX
 #include "chm/HnswOptim.hpp"
 #include "chm/HnswOrig.hpp"
 #include "ChmIndex.hpp"

@@ -54,7 +54,7 @@ namespace chm {
 		void prepareVisited();
 		void reserveHeaps(const size_t ef, FarHeap<Dist>& W);
 		void resetEp(const Dist* const query);
-		void searchLowerLayer(const Dist* const query, const size_t ef, const size_t lc, const bool searching, FarHeap<Dist>& W);
+		template<bool searching> void searchLowerLayer(const Dist* const query, const size_t ef, const size_t lc, FarHeap<Dist>& W);
 		void searchUpperLayer(const Dist* const query, const size_t lc);
 		void selectNeighborsHeuristic(const size_t M);
 
@@ -178,7 +178,8 @@ namespace chm {
 	}
 
 	template<typename Dist>
-	inline void HnswOptim<Dist>::searchLowerLayer(const Dist* const query, const size_t ef, const size_t lc, const bool searching, FarHeap<Dist>& W) {
+	template<bool searching>
+	inline void HnswOptim<Dist>::searchLowerLayer(const Dist* const query, const size_t ef, const size_t lc, FarHeap<Dist>& W) {
 		auto& C = this->nearHeap;
 
 		C.clear();
@@ -194,8 +195,13 @@ namespace chm {
 				const auto& c = C.top();
 				const auto& f = W.top();
 
-				if(c.dist > f.dist && (searching || W.len() == ef))
-					break;
+				if constexpr(searching) {
+					if(c.dist > f.dist)
+						break;
+				} else {
+					if(c.dist > f.dist && W.len() == ef)
+						break;
+				}
 
 				cIdx = c.idx;
 			}
@@ -309,7 +315,7 @@ namespace chm {
 			this->searchUpperLayer(query, lc);
 
 		for(auto lc = std::min(L, l);; lc--) {
-			this->searchLowerLayer(query, this->efConstruction, lc, false, this->farHeap);
+			this->searchLowerLayer<false>(query, this->efConstruction, lc, this->farHeap);
 			this->selectNeighborsHeuristic(this->M);
 
 			this->neighbors.use(this->nodeCount, lc);
@@ -358,7 +364,7 @@ namespace chm {
 		for(size_t lc = L; lc > 0; lc--)
 			this->searchUpperLayer(query, lc);
 
-		this->searchLowerLayer(query, ef, 0, true, W);
+		this->searchLowerLayer<true>(query, ef, 0, W);
 
 		while(W.len() > K)
 			W.pop();
