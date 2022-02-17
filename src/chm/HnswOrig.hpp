@@ -30,7 +30,7 @@ namespace chm {
 		IdxVec& getNeighbors(const Idx idx, const size_t lc);
 		size_t getNewLevel();
 		void initConnections(const Idx idx, const size_t level);
-		void searchLowerLayer(const Dist* const query, Node<Dist>& ep, const size_t ef, const size_t lc, FarHeap<Dist>& W);
+		void searchLowerLayer(const Dist* const query, Node<Dist>& ep, const size_t ef, const size_t lc, const bool searching, FarHeap<Dist>& W);
 		void searchUpperLayer(const Dist* const query, Node<Dist>& resEp, const size_t lc);
 		void selectNeighborsHeuristic(FarHeap<Dist>& outC, const size_t M);
 
@@ -92,7 +92,9 @@ namespace chm {
 	}
 
 	template<typename Dist>
-	inline void HnswOrig<Dist>::searchLowerLayer(const Dist* const query, Node<Dist>& ep, const size_t ef, const size_t lc, FarHeap<Dist>& W) {
+	inline void HnswOrig<Dist>::searchLowerLayer(
+		const Dist* const query, Node<Dist>& ep, const size_t ef, const size_t lc, const bool searching, FarHeap<Dist>& W
+	) {
 		NearHeap<Dist> C{ep};
 		std::unordered_set<Idx> v{ep.idx};
 		W.push(ep);
@@ -104,7 +106,7 @@ namespace chm {
 				const auto& c = C.top();
 				const auto& f = W.top();
 
-				if(c.dist > f.dist && W.len() == ef)
+				if(c.dist > f.dist && (searching || W.len() == ef))
 					break;
 
 				cIdx = c.idx;
@@ -222,7 +224,7 @@ namespace chm {
 
 		for(auto lc = std::min(L, l);; lc--) {
 			FarHeap<Dist> candidates{};
-			this->searchLowerLayer(query, ep, this->efConstruction, lc, candidates);
+			this->searchLowerLayer(query, ep, this->efConstruction, lc, false, candidates);
 			this->selectNeighborsHeuristic(candidates, this->M);
 
 			auto& neighbors = this->getNeighbors(this->nodeCount, lc);
@@ -267,7 +269,7 @@ namespace chm {
 			this->searchUpperLayer(query, ep, lc);
 
 		FarHeap<Dist> W{};
-		this->searchLowerLayer(query, ep, ef, 0, W);
+		this->searchLowerLayer(query, ep, ef, 0, true, W);
 
 		while(W.len() > K)
 			W.pop();
