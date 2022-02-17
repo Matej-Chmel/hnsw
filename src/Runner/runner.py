@@ -3,6 +3,7 @@ import h5py as hdf
 import hnsw
 import IHnsw
 import json
+import numpy as np
 import pandas
 from pathlib import Path
 import time
@@ -67,6 +68,14 @@ def buildIndex(index: IHnsw.Index, name: str, setup: Setup):
 	print(f"Index {name} built in {timeDeltaNS(ns)}.", end="\n\n")
 	return ns
 
+def getRecall(labels: np.ndarray, name: str, setup: Setup):
+	print(f"Computing recall of index {name}...")
+	beginTime = time.perf_counter_ns()
+	recall = hnsw.getRecallFloat32(setup.neighbors, labels)
+	endTime = time.perf_counter_ns()
+	print(f"Recall computed in {timeDeltaNS(endTime - beginTime)}.", end="\n\n")
+	return recall
+
 def initIndex(cls, name: str, setup: Setup) -> tuple[IHnsw.Index, int]:
 	print(f"Initializing index {name}...")
 	beginTime = time.perf_counter_ns()
@@ -90,18 +99,21 @@ def runHNSW(cls, name: str, setup: Setup):
 	index, res.initTimeNS = initIndex(cls, name, setup)
 	res.buildTimeNS = buildIndex(index, name, setup)
 
-	for i in range(len(setup.efs)):
-		ef = setup.efs[i]
-		print(f"Searching index {name} with ef={ef}...")
-		beginTime = time.perf_counter_ns()
-		index.set_ef(ef)
-		labels, _ = index.knn_query(setup.test, setup.neighbors.shape[1])
-		endTime = time.perf_counter_ns()
-		ns = endTime - beginTime
-		print(f"Search completed in {timeDeltaNS(ns)}.", end="\n\n")
-		res.searches.append(SearchResult(hnsw.getRecallFloat32(setup.neighbors, labels), ns))
+	for ef in setup.efs:
+		labels, ns = searchIndex(ef, index, name, setup)
+		res.searches.append(SearchResult(getRecall(labels, name, setup), ns))
 
 	return res
+
+def searchIndex(ef: int, index: IHnsw.Index, name: str, setup: Setup):
+	print(f"Searching index {name} with ef={ef}...")
+	beginTime = time.perf_counter_ns()
+	index.set_ef(ef)
+	labels, _ = index.knn_query(setup.test, setup.neighbors.shape[1])
+	endTime = time.perf_counter_ns()
+	ns = endTime - beginTime
+	print(f"Search completed in {timeDeltaNS(ns)}.", end="\n\n")
+	return labels, ns
 
 def writeResults(results: list[HnswResult], setup: Setup, path: Path):
 	d = {r.name: r.toDict(setup.efs) for r in results}
@@ -111,8 +123,8 @@ def writeResults(results: list[HnswResult], setup: Setup, path: Path):
 		json.dump(d, f, indent=4, sort_keys=True)
 
 def main():
-	datasetName = "d16_tr20000_k10_te10_s100_euclidean"
-	# datasetName = "d128_tr20000_k10_te200_s100_euclidean"
+	# datasetName = "d16_tr20000_k10_te10_s100_euclidean"
+	datasetName = "d128_tr20000_k10_te200_s100_euclidean"
 	# datasetName = "sift-128-euclidean"
 
 	slnDir = Path(__file__).parent.parent.parent
