@@ -3,7 +3,6 @@ import h5py as hdf
 import hnsw
 import IHnsw
 import json
-import numpy as np
 import pandas
 from pathlib import Path
 import time
@@ -65,20 +64,8 @@ def buildIndex(index: IHnsw.Index, name: str, setup: Setup):
 	index.add_items(setup.train)
 	endTime = time.perf_counter_ns()
 	ns = endTime - beginTime
-	print(f"Index {name} built in {timeDeltaNS(ns)}.")
+	print(f"Index {name} built in {timeDeltaNS(ns)}.", end="\n\n")
 	return ns
-
-def getRecall(labels: np.ndarray, trueNeighbors: np.ndarray):
-	correct = 0
-
-	for i in range(trueNeighbors.shape[0]):
-		for found in labels[i]:
-			for neighbor in trueNeighbors[i]:
-				if found == neighbor:
-					correct += 1
-					break
-
-	return float(correct) / (trueNeighbors.shape[0] * trueNeighbors.shape[1])
 
 def initIndex(cls, name: str, setup: Setup) -> tuple[IHnsw.Index, int]:
 	print(f"Initializing index {name}...")
@@ -87,7 +74,7 @@ def initIndex(cls, name: str, setup: Setup) -> tuple[IHnsw.Index, int]:
 	index.init_index(setup.train.shape[0], setup.M, setup.efConstruction, setup.seed)
 	endTime = time.perf_counter_ns()
 	ns = endTime - beginTime
-	print(f"Index {name} initialized in {timeDeltaNS(ns)}.")
+	print(f"Index {name} initialized in {timeDeltaNS(ns)}.", end="\n\n")
 	return index, ns
 
 def timeDeltaNS(ns: int):
@@ -111,10 +98,9 @@ def runHNSW(cls, name: str, setup: Setup):
 		labels, _ = index.knn_query(setup.test, setup.neighbors.shape[1])
 		endTime = time.perf_counter_ns()
 		ns = endTime - beginTime
-		print("Search completed.")
-		res.searches.append(SearchResult(getRecall(labels, setup.neighbors), ns))
+		print(f"Search completed in {timeDeltaNS(ns)}.", end="\n\n")
+		res.searches.append(SearchResult(hnsw.getRecallFloat32(setup.neighbors, labels), ns))
 
-	print()
 	return res
 
 def writeResults(results: list[HnswResult], setup: Setup, path: Path):
@@ -125,7 +111,10 @@ def writeResults(results: list[HnswResult], setup: Setup, path: Path):
 		json.dump(d, f, indent=4, sort_keys=True)
 
 def main():
-	datasetName = "d128_tr20000_k10_te200_s100_euclidean"
+	datasetName = "d16_tr20000_k10_te10_s100_euclidean"
+	# datasetName = "d128_tr20000_k10_te200_s100_euclidean"
+	# datasetName = "sift-128-euclidean"
+
 	slnDir = Path(__file__).parent.parent.parent
 	setup = Setup(
 		200, [*range(10, 30), *range(100, 2000, 100)], 16,

@@ -6,6 +6,14 @@ from pathlib import Path
 N = "\n"
 Y_LABEL = "Execution time (ns)"
 
+def algoRecallsToStr(algos: list[str], results: dict, idx: int):
+	s = "Recall:\n"
+
+	for a in algos:
+		s += f"{a}: {results[a]['searches'][idx]['recall']:.3f}{N}"
+
+	return s
+
 def algoTimesToStr(algos: list[str], results: dict, title: str, attr: str, idx: int = None):
 	s = f"{N}{title}:{N}"
 
@@ -86,6 +94,7 @@ def resultsToStr(results: dict):
 
 	for i in range(len(searches)):
 		s += algoTimesToStr(algos, results, f"Search, ef={searches[i]['ef']}", "searches", i)
+		s += algoRecallsToStr(algos, results, i)
 
 	return s
 

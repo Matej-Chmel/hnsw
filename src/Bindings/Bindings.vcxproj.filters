@@ -35,5 +35,8 @@
     <ClInclude Include="ChmIndex.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="recall.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
