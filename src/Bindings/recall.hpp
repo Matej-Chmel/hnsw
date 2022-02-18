@@ -16,8 +16,8 @@ namespace chm {
 		NumpyArrayWrapper(const NumpyArray<T>& a);
 	};
 
-	template<typename Dist>
-	float getRecall(const NumpyArray<Dist> correctLabels, const NumpyArray<Dist> labels);
+	template<typename T>
+	float getRecall(const NumpyArray<T> correctLabels, const NumpyArray<T> labels);
 
 	template<typename T>
 	inline void NumpyArrayWrapper<T>::fillSet(std::unordered_set<T>& set, const size_t x) const {
@@ -41,11 +41,11 @@ namespace chm {
 	inline NumpyArrayWrapper<T>::NumpyArrayWrapper(const NumpyArray<T>& a)
 		: buf(a.request()), data((const T* const)this->buf.ptr), xDim(this->buf.shape[0]), yDim(this->buf.shape[1]) {}
 
-	template<typename Dist>
-	float getRecall(const NumpyArray<Dist> correctLabels, const NumpyArray<Dist> testedLabels) {
+	template<typename T>
+	float getRecall(const NumpyArray<T> correctLabels, const NumpyArray<T> testedLabels) {
 		NumpyArrayWrapper correctWrapper(correctLabels), testedWrapper(testedLabels);
 		size_t hits = 0;
-		std::unordered_set<Dist> correctSet;
+		std::unordered_set<T> correctSet;
 		correctSet.reserve(correctWrapper.yDim);
 
 		for(size_t x = 0; x < correctWrapper.xDim; x++) {

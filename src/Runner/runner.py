@@ -71,7 +71,7 @@ def buildIndex(index: IHnsw.Index, name: str, setup: Setup):
 def getRecall(labels: np.ndarray, name: str, setup: Setup):
 	print(f"Computing recall of index {name}...")
 	beginTime = time.perf_counter_ns()
-	recall = hnsw.getRecallFloat32(setup.neighbors, labels)
+	recall = hnsw.getRecallInt64(setup.neighbors, labels)
 	endTime = time.perf_counter_ns()
 	print(f"Recall computed in {timeDeltaNS(endTime - beginTime)}.", end="\n\n")
 	return recall
@@ -124,10 +124,10 @@ def writeResults(results: list[HnswResult], setup: Setup, path: Path):
 
 def main():
 	# datasetName = "d16_tr20000_k10_te10_s100_euclidean"
-	datasetName = "d128_tr20000_k10_te200_s100_euclidean"
+	datasetName = "d128_tr20000_k100_te200_s100_euclidean"
 	# datasetName = "sift-128-euclidean"
 
-	slnDir = Path(__file__).parent.parent.parent
+	slnDir = Path(__file__).parents[2]
 	setup = Setup(
 		200, [*range(10, 30), *range(100, 2000, 100)], 16,
 		slnDir / "datasets" / f"{datasetName}.hdf5",
