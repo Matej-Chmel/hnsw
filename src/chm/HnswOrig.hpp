@@ -269,7 +269,7 @@ namespace chm {
 			this->searchUpperLayer(query, ep, lc);
 
 		FarHeap<Dist> W{};
-		this->searchLowerLayer(query, ep, ef, 0, true, W);
+		this->searchLowerLayer(query, ep, std::max(ef, K), 0, true, W);
 
 		while(W.len() > K)
 			W.pop();

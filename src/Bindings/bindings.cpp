@@ -7,8 +7,7 @@
 
 namespace chm {
 	template<typename Dist>
-	void bindDist(py::module_& m, const std::string& typeName) {
-		m.def(("getRecall" + typeName).c_str(), getRecall<Dist>);
+	void bindIndices(py::module_& m, const std::string& typeName) {
 		bindChmIndex<HnswOptim<Dist>, Dist>(m, ("ChmOptimIndex" + typeName).c_str());
 		bindChmIndex<HnswOrig<Dist>, Dist>(m, ("ChmOrigIndex" + typeName).c_str());
 		bindHnswlibIndex<hnswlib::BruteforceSearch<Dist>, Dist>(m, ("BruteforceIndex" + typeName).c_str());
@@ -16,8 +15,9 @@ namespace chm {
 	}
 
 	PYBIND11_MODULE(hnsw, m) {
+		m.def("getRecallInt64", getRecall<size_t>);
 		m.doc() = "Python bindings for hnswlib and chm versions of HNSW.";
 		bindSpaceEnum(m);
-		bindDist<float>(m, "Float32");
+		bindIndices<float>(m, "Float32");
 	}
 }
