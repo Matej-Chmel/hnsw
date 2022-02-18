@@ -355,8 +355,9 @@ namespace chm {
 
 	template<typename Dist>
 	inline FarHeap<Dist> HnswOptim<Dist>::search(const Dist* const query, const size_t K, const size_t ef) {
+		const auto maxEf = std::max(ef, K);
 		FarHeap<Dist> W{};
-		this->reserveHeaps(ef, W);
+		this->reserveHeaps(maxEf, W);
 
 		this->resetEp(query);
 		const auto L = this->entryLevel;
@@ -364,7 +365,7 @@ namespace chm {
 		for(size_t lc = L; lc > 0; lc--)
 			this->searchUpperLayer(query, lc);
 
-		this->searchLowerLayer<true>(query, ef, 0, W);
+		this->searchLowerLayer<true>(query, maxEf, 0, W);
 
 		while(W.len() > K)
 			W.pop();

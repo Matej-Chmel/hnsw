@@ -107,7 +107,7 @@ def upperFirst(s: str):
 	return s[0].upper() + s[1:]
 
 def main():
-	outDir = Path(__file__).parent.parent.parent / "out"
+	outDir = Path(__file__).parents[2] / "out"
 
 	with (outDir / "results.json").open("r", encoding="utf-8") as f:
 		results = json.load(f)
