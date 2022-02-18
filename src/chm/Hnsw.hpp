@@ -337,8 +337,10 @@ namespace chm {
 		if(this->distanceCacheEnabled)
 			this->distanceCache.clear();
 
+		const auto maxEf = std::max(ef, K);
+
 		if(this->keepHeaps)
-			this->reserveHeaps(ef);
+			this->reserveHeaps(maxEf);
 
 		this->resetEp(query);
 		const auto L = this->entryLevel;
@@ -347,7 +349,7 @@ namespace chm {
 			this->searchUpperLayer(query, lc);
 
 		auto& W = this->farHeap;
-		this->searchLowerLayer(query, Idx(ef), 0);
+		this->searchLowerLayer(query, maxEf, 0);
 
 		while(W.len() > K)
 			W.pop();

@@ -49,7 +49,7 @@ namespace chm {
 		return res;
 	}
 
-	template<typename Coord>
+	template<typename Coord, typename Label>
 	FoundNeighborsPtr<Coord> readTrueNeighbors(const fs::path& p, const size_t K, const size_t Kmax) {
 		std::ifstream s(p, std::ios::binary);
 
@@ -57,8 +57,8 @@ namespace chm {
 		const auto size = s.tellg();
 		s.seekg(0, std::ios::beg);
 
-		const auto len = size / sizeof(unsigned int);
-		std::vector<unsigned int> indices;
+		const auto len = size / sizeof(Label);
+		std::vector<Label> indices;
 		const auto queryCount = len / Kmax;
 		auto res = std::make_shared<FoundNeighbors<Coord>>(queryCount);
 

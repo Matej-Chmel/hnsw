@@ -47,12 +47,12 @@ namespace chm {
 
 	template<typename Coord, typename Idx>
 	struct HnswLocals {
-		size_t ef;
 		size_t K;
 		size_t L;
 		size_t l;
 		size_t layerMmax;
 		bool isFirstNode;
+		size_t maxEf;
 		ConstIter<Coord> query;
 	};
 
@@ -352,15 +352,15 @@ namespace chm {
 
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline void HnswInterImpl<Coord, Idx, useEuclid>::startSearchANN(const ConstIter<Coord>& query, const size_t ef, const size_t K) {
-		this->local.ef = ef;
 		this->local.K = K;
+		this->local.maxEf = std::max(ef, K);
 		this->local.query = query;
 
 		if(this->hnsw->distanceCacheEnabled)
 			this->hnsw->distanceCache.clear();
 
 		if(this->hnsw->keepHeaps)
-			this->hnsw->reserveHeaps(std::max(this->local.ef, this->hnsw->Mmax0));
+			this->hnsw->reserveHeaps(this->local.maxEf);
 
 		this->hnsw->resetEp(this->local.query);
 	}
@@ -377,7 +377,7 @@ namespace chm {
 
 	template<typename Coord, typename Idx, bool useEuclid>
 	inline void HnswInterImpl<Coord, Idx, useEuclid>::searchLastLayerANN() {
-		this->hnsw->searchLowerLayer(this->local.query, Idx(this->local.ef), 0);
+		this->hnsw->searchLowerLayer(this->local.query, this->local.maxEf, 0);
 	}
 
 	template<typename Coord, typename Idx, bool useEuclid>

@@ -498,6 +498,7 @@ namespace chm {
 		}
 
 		res->err = err;
+		this->err = nullptr;
 		res->refRes.queryTime.calcStats();
 		res->refRes.conn = sortedInPlace(this->refAlgo->getConnections());
 		res->subRes.queryTime.calcStats();
@@ -532,6 +533,7 @@ namespace chm {
 		}
 
 		res->err = err;
+		this->err = nullptr;
 		res->refRes.calcRecall(trueNeighbors->indices);
 		res->refRes.queryTime.calcStats();
 		res->subRes.calcRecall(trueNeighbors->indices);

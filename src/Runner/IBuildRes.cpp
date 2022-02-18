@@ -129,10 +129,6 @@ namespace chm {
 	}
 
 	void IBuildRes::write(const fs::path& outDir) const {
-		for(const auto& entry : fs::directory_iterator(outDir))
-			if(entry.is_regular_file())
-				fs::remove(entry.path());
-
 		writeConn(this->getRefRes().conn, outDir / "refConn.log");
 		writeConn(this->getSubRes().conn, outDir / "subConn.log");
 
