@@ -70,6 +70,7 @@ namespace chm {
 
 		InterSearchRes(const size_t queryCount);
 		void print(std::ostream& s) const override;
+		void writeErr(const fs::path& outDir) const;
 	};
 
 	template<typename Coord>
@@ -218,6 +219,15 @@ namespace chm {
 		this->printTests(s);
 		printTestRes(s, "Intermediates comparison", !this->err);
 		this->printAlgoRes(s);
+	}
+
+	template<typename Coord>
+	inline void InterSearchRes<Coord>::writeErr(const fs::path& outDir) const {
+		if(this->err) {
+			if(!fs::exists(outDir))
+				fs::create_directories(outDir);
+			this->err->write(outDir);
+		}
 	}
 
 	template<typename Coord>
