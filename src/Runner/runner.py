@@ -71,7 +71,7 @@ def buildIndex(index: IHnsw.Index, name: str, setup: Setup):
 def getRecall(labels: np.ndarray, name: str, setup: Setup):
 	print(f"Computing recall of index {name}...")
 	beginTime = time.perf_counter_ns()
-	recall = hnsw.getRecallInt64(setup.neighbors, labels)
+	recall = hnsw.getRecallUInt64(setup.neighbors, labels)
 	endTime = time.perf_counter_ns()
 	print(f"Recall computed in {timeDeltaNS(endTime - beginTime)}.", end="\n\n")
 	return recall

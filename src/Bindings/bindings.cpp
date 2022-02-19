@@ -15,7 +15,7 @@ namespace chm {
 	}
 
 	PYBIND11_MODULE(hnsw, m) {
-		m.def("getRecallInt64", getRecall<size_t>);
+		m.def("getRecallUInt64", getRecall<size_t>);
 		m.doc() = "Python bindings for hnswlib and chm versions of HNSW.";
 		bindSpaceEnum(m);
 		bindIndices<float>(m, "Float32");
