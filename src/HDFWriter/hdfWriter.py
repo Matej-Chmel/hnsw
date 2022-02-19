@@ -5,7 +5,7 @@ from pathlib import Path
 
 def generateData(count: int, dim: int, seed: int):
 	np.random.seed(seed)
-	return np.float32(np.random.random((count, dim)))
+	return np.random.rand(count, dim).astype(np.float32)
 
 def getNeighbors(K: int, space: hnsw.Space, test: np.ndarray, train: np.ndarray):
 	index = hnsw.BruteforceIndexFloat32(space, train.shape[1])
@@ -27,11 +27,12 @@ def run(dim: int, K: int, seed: int, space: hnsw.Space, testCount: int, trainCou
 def spaceToStr(s: hnsw.Space):
 	return str(s).split(".")[1].lower()
 
-def writeArrayToBin(arr: np.ndarray, path: Path, type: str = "f4"):
-	arr.flatten().tofile(path, format=f"<{type}")
+def writeArrayToBin(arr: np.ndarray, path: Path):
+	arr.flatten().tofile(path)
+	print(f"Written {path}, dtype={arr.dtype}.")
 
 def writeBin(neighbors: np.ndarray, test: np.ndarray, train: np.ndarray, outDir: Path):
-	writeArrayToBin(neighbors, outDir / "neighbors.bin", "i8")
+	writeArrayToBin(neighbors, outDir / "neighbors.bin")
 	writeArrayToBin(test, outDir / "test.bin")
 	writeArrayToBin(train, outDir / "train.bin")
 
