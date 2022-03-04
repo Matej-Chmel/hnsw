@@ -124,19 +124,21 @@ def writeResults(results: list[HnswResult], setup: Setup, path: Path):
 
 def main():
 	# datasetName = "d16_tr20000_k10_te10_s100_euclidean"
-	datasetName = "d128_tr20000_k100_te200_s100_euclidean"
+	# datasetName = "d128_tr20000_k100_te200_s100_euclidean"
+	# datasetName = "d128_tr20000_k100_te200_s100_angular"
+	datasetName = "lastfm-64-dot"
 	# datasetName = "sift-128-euclidean"
 
 	slnDir = Path(__file__).parents[2]
 	setup = Setup(
 		200, [*range(10, 30), *range(100, 2000, 100)], 16,
 		slnDir / "datasets" / f"{datasetName}.hdf5",
-		200, hnsw.Space.EUCLIDEAN
+		200, hnsw.Space.ANGULAR
 	)
 
 	results = [
 		runHNSW(hnsw.HnswlibIndexFloat32, "hnswlib", setup),
-		runHNSW(hnsw.ChmOrigIndexFloat32, "chm-original", setup),
+		# runHNSW(hnsw.ChmOrigIndexFloat32, "chm-original", setup),
 		runHNSW(hnsw.ChmOptimIndexFloat32, "chm-optimized", setup)
 	]
 

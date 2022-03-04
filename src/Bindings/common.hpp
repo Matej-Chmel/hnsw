@@ -27,13 +27,25 @@ namespace chm {
 	template<typename Dist>
 	DistFunc<Dist> getDistFunc(const SpaceEnum s) {
 		switch(s) {
-			case SpaceEnum::EUCLIDEAN:
-				return euclideanDistance<Dist>;
+			case SpaceEnum::ANGULAR:
 			case SpaceEnum::INNER_PRODUCT:
 				return innerProductDistance<Dist>;
+			case SpaceEnum::EUCLIDEAN:
+				return euclideanDistance<Dist>;
 			default:
 				throw std::runtime_error(UNKNOWN_SPACE);
 		}
+	}
+
+	template<typename Dist>
+	void normalizeData(const Dist* const data, std::vector<Dist>& res) {
+		const auto dim = res.size();
+		Dist norm = 0;
+
+		for(size_t i = 0; i < dim; i++)
+			norm += data[i] * data[i];
+		for(size_t i = 0; i < dim; i++)
+			res[i] = data[i] / norm;
 	}
 
 	template<typename ChmAlgo, typename Dist>

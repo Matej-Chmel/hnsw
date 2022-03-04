@@ -7,6 +7,8 @@ namespace chm {
 	class HnswlibIndex {
 		std::unique_ptr<Algo> algo;
 		const size_t dim;
+		bool normalize;
+		std::vector<Dist> normCoords;
 		std::unique_ptr<hnswlib::SpaceInterface<Dist>> space;
 
 	public:
@@ -24,13 +26,22 @@ namespace chm {
 	inline void HnswlibIndex<Algo, Dist>::addItems(const NumpyArray<Dist> data) {
 		const auto info = getDataInfo(data, this->dim);
 
-		for(size_t i = 0; i < info.count; i++)
-			this->algo->addPoint(info.ptr + i * this->dim, i);
+		if(this->normalize)
+			for(size_t i = 0; i < info.count; i++) {
+				normalizeData(info.ptr + i * this->dim, this->normCoords);
+				this->algo->addPoint(this->normCoords.data(), i);
+			}
+		else
+			for(size_t i = 0; i < info.count; i++)
+				this->algo->addPoint(info.ptr + i * this->dim, i);
 	}
 
 	template<typename Algo, typename Dist>
-	inline HnswlibIndex<Algo, Dist>::HnswlibIndex(const SpaceEnum spaceEnum, const size_t dim) : algo(nullptr), dim(dim) {
+	inline HnswlibIndex<Algo, Dist>::HnswlibIndex(const SpaceEnum spaceEnum, const size_t dim) : algo(nullptr), dim(dim), normalize(false) {
 		switch(spaceEnum) {
+			case SpaceEnum::ANGULAR:
+				this->normalize = true;
+				this->normCoords.resize(this->dim);
 			case SpaceEnum::INNER_PRODUCT:
 				this->space = std::make_unique<templatedHnswlib::IPSpace<Dist>>(dim);
 				break;

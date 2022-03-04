@@ -45,7 +45,7 @@ def writeHDF(neighbors: np.ndarray, test: np.ndarray, train: np.ndarray, path: P
 	print(f"Written {path}.")
 
 def main():
-	run(128, 100, 100, hnsw.Space.EUCLIDEAN, 200, 20000, True)
+	run(128, 100, 100, hnsw.Space.ANGULAR, 200, 20000)
 
 if __name__ == "__main__":
 	main()

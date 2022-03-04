@@ -8,6 +8,8 @@ namespace chm {
 		const size_t dim;
 		DistFunc<Dist> distFunc;
 		size_t ef;
+		bool normalize;
+		std::vector<Dist> normCoords;
 
 	public:
 		void addItems(const NumpyArray<Dist> data);
@@ -24,13 +26,23 @@ namespace chm {
 	inline void ChmIndex<Algo, Dist>::addItems(const NumpyArray<Dist> data) {
 		const auto info = getDataInfo(data, this->dim);
 
-		for(size_t i = 0; i < info.count; i++)
-			this->algo->insert(info.ptr + i * this->dim);
+		if(this->normalize)
+			for(size_t i = 0; i < info.count; i++) {
+				normalizeData(info.ptr + i * this->dim, this->normCoords);
+				this->algo->insert(this->normCoords.data());
+			}
+		else
+			for(size_t i = 0; i < info.count; i++)
+				this->algo->insert(info.ptr + i * this->dim);
 	}
 
 	template<class Algo, typename Dist>
 	inline ChmIndex<Algo, Dist>::ChmIndex(const SpaceEnum spaceEnum, const size_t dim) : algo(nullptr), dim(dim), distFunc{}, ef(DEFAULT_EF) {
 		this->distFunc = getDistFunc<Dist>(spaceEnum);
+		this->normalize = spaceEnum == SpaceEnum::ANGULAR;
+
+		if(this->normalize)
+			this->normCoords.resize(this->dim);
 	}
 
 	template<class Algo, typename Dist>

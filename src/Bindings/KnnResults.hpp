@@ -27,6 +27,7 @@ namespace chm {
 	using NumpyArray = py::array_t<Dist, py::array::c_style | py::array::forcecast>;
 
 	enum class SpaceEnum {
+		ANGULAR,
 		EUCLIDEAN,
 		INNER_PRODUCT
 	};

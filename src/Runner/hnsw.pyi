@@ -3,6 +3,7 @@ import IHnsw
 import numpy as np
 
 class Space(Enum):
+	ANGULAR = auto()
 	EUCLIDEAN = auto()
 	INNER_PRODUCT = auto()
 
