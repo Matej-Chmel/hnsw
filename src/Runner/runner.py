@@ -123,10 +123,8 @@ def writeResults(results: list[HnswResult], setup: Setup, path: Path):
 		json.dump(d, f, indent=4, sort_keys=True)
 
 def main():
-	# datasetName = "d16_tr20000_k10_te10_s100_euclidean"
-	# datasetName = "d128_tr20000_k100_te200_s100_euclidean"
-	# datasetName = "d128_tr20000_k100_te200_s100_angular"
-	datasetName = "lastfm-64-dot"
+	datasetName = "d128_tr20000_k100_te200_s100_angular"
+	# datasetName = "lastfm-64-dot"
 	# datasetName = "sift-128-euclidean"
 
 	slnDir = Path(__file__).parents[2]
