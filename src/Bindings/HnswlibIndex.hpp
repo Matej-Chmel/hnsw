@@ -1,5 +1,6 @@
 #pragma once
 #include <hnswlib/templateSpaces.hpp>
+#include <type_traits>
 #include "common.hpp"
 
 namespace chm {
@@ -43,10 +44,16 @@ namespace chm {
 				this->normalize = true;
 				this->normCoords.resize(this->dim);
 			case SpaceEnum::INNER_PRODUCT:
-				this->space = std::make_unique<templatedHnswlib::IPSpace<Dist>>(dim);
+				if constexpr(std::is_same<Dist, float>::value)
+					this->space = std::make_unique<hnswlib::InnerProductSpace>(dim);
+				else
+					this->space = std::make_unique<templatedHnswlib::IPSpace<Dist>>(dim);
 				break;
 			case SpaceEnum::EUCLIDEAN:
-				this->space = std::make_unique<templatedHnswlib::EuclideanSpace<Dist>>(dim);
+				if constexpr(std::is_same<Dist, float>::value)
+					this->space = std::make_unique<hnswlib::L2Space>(dim);
+				else
+					this->space = std::make_unique<templatedHnswlib::EuclideanSpace<Dist>>(dim);
 				break;
 			default:
 				throw std::runtime_error(UNKNOWN_SPACE);

@@ -42,6 +42,7 @@
     <Import Project="..\props\Pybind Debug.props" />
     <Import Project="..\props\C++17.props" />
     <Import Project="..\props\Include src.props" />
+    <Import Project="..\props\Enhanced Instruction Set.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -49,6 +50,7 @@
     <Import Project="..\props\Pybind Release.props" />
     <Import Project="..\props\C++17.props" />
     <Import Project="..\props\Include src.props" />
+    <Import Project="..\props\Enhanced Instruction Set.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
