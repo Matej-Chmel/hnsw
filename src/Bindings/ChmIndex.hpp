@@ -1,5 +1,6 @@
 #pragma once
 #include "common.hpp"
+#include "distances.hpp"
 
 namespace chm {
 	template<class Algo, typename Dist>
@@ -38,7 +39,7 @@ namespace chm {
 
 	template<class Algo, typename Dist>
 	inline ChmIndex<Algo, Dist>::ChmIndex(const SpaceEnum spaceEnum, const size_t dim) : algo(nullptr), dim(dim), distFunc{}, ef(DEFAULT_EF) {
-		this->distFunc = getDistFunc<Dist>(spaceEnum);
+		this->distFunc = getDistFunc<Dist>(spaceEnum, dim);
 		this->normalize = spaceEnum == SpaceEnum::ANGULAR;
 
 		if(this->normalize)

@@ -67,7 +67,7 @@ namespace chm {
 				return iter->second;
 		}
 
-		const auto res = this->distFunc(node, query, this->dim);
+		const auto res = this->distFunc(node, query, &this->dim);
 
 		if(useCache)
 			this->distanceCache[nodeIdx] = res;

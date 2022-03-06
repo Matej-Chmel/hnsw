@@ -98,6 +98,7 @@
   <ItemGroup>
     <ClInclude Include="ChmIndex.hpp" />
     <ClInclude Include="common.hpp" />
+    <ClInclude Include="distances.hpp" />
     <ClInclude Include="HnswlibIndex.hpp" />
     <ClInclude Include="KnnResults.hpp" />
     <ClInclude Include="recall.hpp" />

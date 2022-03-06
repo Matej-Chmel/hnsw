@@ -3,7 +3,10 @@
 
 namespace chm {
 	template<typename Dist>
-	Dist euclideanDistance(const Dist* const node, const Dist* const query, const size_t dim) {
+	Dist euclideanDistance(const void* nodePtr, const void* queryPtr, const void* dimPtr) {
+		const auto dim = *(const size_t* const)(dimPtr);
+		const Dist* const node = (const Dist* const)nodePtr;
+		const Dist* const query = (const Dist* const)queryPtr;
 		Dist res = 0;
 
 		for(size_t i = 0; i < dim; i++) {
@@ -15,7 +18,10 @@ namespace chm {
 	}
 
 	template<typename Dist>
-	Dist innerProductDistance(const Dist* const node, const Dist* const query, const size_t dim) {
+	Dist innerProductDistance(const void* nodePtr, const void* queryPtr, const void* dimPtr) {
+		const auto dim = *(const size_t* const)(dimPtr);
+		const Dist* const node = (const Dist* const)nodePtr;
+		const Dist* const query = (const Dist* const)queryPtr;
 		Dist res = 0;
 
 		for(size_t i = 0; i < dim; i++)
@@ -25,5 +31,5 @@ namespace chm {
 	}
 
 	template<typename Dist>
-	using DistFunc = std::function<Dist(const Dist* const, const Dist* const, const size_t)>;
+	using DistFunc = std::function<Dist(const void*, const void*, const void*)>;
 }

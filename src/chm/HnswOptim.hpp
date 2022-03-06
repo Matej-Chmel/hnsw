@@ -139,7 +139,7 @@ namespace chm {
 
 	template<typename Dist>
 	inline Dist HnswOptim<Dist>::getDistance(const Dist* const node, const Dist* const query) {
-		return this->distFunc(node, query, this->dim);
+		return this->distFunc(node, query, &this->dim);
 	}
 
 	template<typename Dist>

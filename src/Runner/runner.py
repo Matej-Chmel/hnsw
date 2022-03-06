@@ -136,7 +136,7 @@ def main():
 
 	results = [
 		runHNSW(hnsw.HnswlibIndexFloat32, "hnswlib", setup),
-		# runHNSW(hnsw.ChmOrigIndexFloat32, "chm-original", setup),
+		runHNSW(hnsw.ChmOrigIndexFloat32, "chm-original", setup),
 		runHNSW(hnsw.ChmOptimIndexFloat32, "chm-optimized", setup)
 	]
 

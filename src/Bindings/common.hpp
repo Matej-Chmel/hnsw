@@ -1,15 +1,11 @@
 #pragma once
 #include <memory>
 #include <string>
-#include "chm/distances.hpp"
 #include "KnnResults.hpp"
 
 namespace chm {
 	template<typename Index>
 	void bindIndexImpl(py::module_& m, const std::string& name);
-
-	template<typename Dist>
-	DistFunc<Dist> getDistFunc(const SpaceEnum s);
 
 	template<typename ChmAlgo, typename Dist>
 	py::tuple knnQueryImpl(std::unique_ptr<ChmAlgo>& algo, const NumpyArray<Dist>& data, const size_t& dim, const size_t& ef, const size_t& K);
@@ -22,19 +18,6 @@ namespace chm {
 			.def("init_index", &Index::init, py::arg("max_elements"), py::arg("M") = 16, py::arg("ef_construction") = 200, py::arg("seed") = 100)
 			.def("knn_query", &Index::knnQuery)
 			.def("set_ef", &Index::setEf);
-	}
-
-	template<typename Dist>
-	DistFunc<Dist> getDistFunc(const SpaceEnum s) {
-		switch(s) {
-			case SpaceEnum::ANGULAR:
-			case SpaceEnum::INNER_PRODUCT:
-				return innerProductDistance<Dist>;
-			case SpaceEnum::EUCLIDEAN:
-				return euclideanDistance<Dist>;
-			default:
-				throw std::runtime_error(UNKNOWN_SPACE);
-		}
 	}
 
 	template<typename Dist>
