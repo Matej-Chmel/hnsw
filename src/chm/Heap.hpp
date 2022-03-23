@@ -157,6 +157,11 @@ namespace chm {
 	}
 
 	template<typename Dist, class Cmp>
+	inline size_t Heap<Dist, Cmp>::len() const {
+		return this->nodes.size();
+	}
+
+	template<typename Dist, class Cmp>
 	template<class C>
 	inline void Heap<Dist, Cmp>::loadFrom(Heap<Dist, C>& o) {
 		this->clear();
@@ -165,11 +170,6 @@ namespace chm {
 			this->push(o.top());
 			o.pop();
 		}
-	}
-
-	template<typename Dist, class Cmp>
-	inline size_t Heap<Dist, Cmp>::len() const {
-		return this->nodes.size();
 	}
 
 	template<typename Dist, class Cmp>

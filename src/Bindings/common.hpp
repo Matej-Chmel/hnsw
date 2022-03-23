@@ -1,4 +1,5 @@
 #pragma once
+#include <cmath>
 #include <memory>
 #include <string>
 #include "KnnResults.hpp"
@@ -27,8 +28,11 @@ namespace chm {
 
 		for(size_t i = 0; i < dim; i++)
 			norm += data[i] * data[i];
+
+		norm = Dist(1) / std::sqrt(norm);
+
 		for(size_t i = 0; i < dim; i++)
-			res[i] = data[i] / norm;
+			res[i] = data[i] * norm;
 	}
 
 	template<typename ChmAlgo, typename Dist>
